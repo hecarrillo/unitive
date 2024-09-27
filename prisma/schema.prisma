@@ -12,7 +12,7 @@ generator client {
 }
 
 model TouristicLocation {
-  id                 Int                    @id @default(autoincrement())
+  id                 String                 @id
   categoryId         Int
   name               String
   latitude           Float
@@ -35,7 +35,7 @@ model TouristicLocation {
 
 model SiteReview {
   id            Int               @id @default(autoincrement())
-  locationId    Int
+  locationId    String
   title         String
   body          String
   rating        Float
@@ -73,7 +73,7 @@ model UserAspectPreference {
 
 model LocationAspectRating {
   id            Int               @id @default(autoincrement())
-  locationId    Int
+  locationId    String
   aspectId      Int
   rating        Int
   generatedDate DateTime
@@ -105,7 +105,7 @@ model User {
 model FavoriteUserLocation {
   id         Int               @id @default(autoincrement())
   userId     Int
-  locationId Int
+  locationId String
   user       User              @relation(fields: [userId], references: [id])
   location   TouristicLocation @relation(fields: [locationId], references: [id])
 
@@ -117,7 +117,7 @@ model FavoriteUserLocation {
 model UserRouteLocation {
   id         Int               @id @default(autoincrement())
   userId     Int
-  locationId Int
+  locationId String
   user       User              @relation(fields: [userId], references: [id])
   location   TouristicLocation @relation(fields: [locationId], references: [id])
 
