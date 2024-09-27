@@ -1,0 +1,132 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model TouristicLocation {
+  id                 Int                    @id @default(autoincrement())
+  categoryId         Int
+  name               String
+  latitude           Float
+  longitude          Float
+  summarizedReview   String?
+  rating             Float
+  googlePlaceId      String?                @unique
+  tripAdvisorPlaceId String?                @unique
+  category           LocationCategory       @relation(fields: [categoryId], references: [id])
+  siteReviews        SiteReview[]
+  aspectRatings      LocationAspectRating[]
+  favoriteUsers      FavoriteUserLocation[]
+  userRoutes         UserRouteLocation[]
+
+  @@index([categoryId])
+  @@index([name])
+  @@index([rating])
+  @@index([latitude, longitude])
+}
+
+model SiteReview {
+  id            Int               @id @default(autoincrement())
+  locationId    Int
+  title         String
+  body          String
+  rating        Float
+  extractedDate DateTime
+  source        ReviewSource
+  userId        Int?
+  location      TouristicLocation @relation(fields: [locationId], references: [id])
+  user          User?             @relation(fields: [userId], references: [id])
+
+  @@index([locationId])
+  @@index([userId])
+  @@index([rating])
+  @@index([extractedDate])
+}
+
+model Aspect {
+  id              Int                    @id @default(autoincrement())
+  name            String                 @unique
+  userPreferences UserAspectPreference[]
+  locationRatings LocationAspectRating[]
+}
+
+model UserAspectPreference {
+  id              Int    @id @default(autoincrement())
+  userId          Int
+  aspectId        Int
+  preferenceOrder Int
+  user            User   @relation(fields: [userId], references: [id])
+  aspect          Aspect @relation(fields: [aspectId], references: [id])
+
+  @@unique([userId, aspectId])
+  @@index([userId])
+  @@index([aspectId])
+}
+
+model LocationAspectRating {
+  id            Int               @id @default(autoincrement())
+  locationId    Int
+  aspectId      Int
+  rating        Int
+  generatedDate DateTime
+  location      TouristicLocation @relation(fields: [locationId], references: [id])
+  aspect        Aspect            @relation(fields: [aspectId], references: [id])
+
+  @@unique([locationId, aspectId])
+  @@index([locationId])
+  @@index([aspectId])
+  @@index([rating])
+}
+
+model LocationCategory {
+  id        Int                 @id @default(autoincrement())
+  name      String              @unique
+  locations TouristicLocation[]
+}
+
+model User {
+  id                Int                    @id @default(autoincrement())
+  email             String                 @unique
+  avatarUrl         String?
+  aspectPreferences UserAspectPreference[]
+  favoriteLocations FavoriteUserLocation[]
+  routeLocations    UserRouteLocation[]
+  reviews           SiteReview[]
+}
+
+model FavoriteUserLocation {
+  id         Int               @id @default(autoincrement())
+  userId     Int
+  locationId Int
+  user       User              @relation(fields: [userId], references: [id])
+  location   TouristicLocation @relation(fields: [locationId], references: [id])
+
+  @@unique([userId, locationId])
+  @@index([userId])
+  @@index([locationId])
+}
+
+model UserRouteLocation {
+  id         Int               @id @default(autoincrement())
+  userId     Int
+  locationId Int
+  user       User              @relation(fields: [userId], references: [id])
+  location   TouristicLocation @relation(fields: [locationId], references: [id])
+
+  @@index([userId])
+  @@index([locationId])
+}
+
+enum ReviewSource {
+  GMAPS
+  TA
+  USR
+}
