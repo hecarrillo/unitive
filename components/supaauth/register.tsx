@@ -3,7 +3,7 @@ import React from "react";
 import SignUp from "./signup";
 import Social from "./social";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
+//import { useSearchParams } from "next/navigation";
 
 export default function Register() {
 	const queryString =
