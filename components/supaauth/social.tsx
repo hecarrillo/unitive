@@ -8,6 +8,9 @@ import { createSupabaseBrowser } from "@/lib/supabase/client";
 export default function Social({ redirectTo }: { redirectTo: string }) {
 	const loginWithProvider = async (provider: "github" | "google") => {
 		const supbase = createSupabaseBrowser();
+		console.log(window.location.origin +
+			`/auth/callback?next=` +
+			redirectTo)
 		await supbase.auth.signInWithOAuth({
 			provider,
 			options: {
