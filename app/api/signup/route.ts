@@ -6,7 +6,6 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(request: Request) {
 	// rate limit
-
 	const data = await request.json();
 	const supabase = supabaseAdmin();
 
@@ -26,6 +25,8 @@ export async function POST(request: Request) {
 				verificationCode: res.data.properties?.email_otp,
 			}),
 		});
+
+		console.log(resendRes)
 		return Response.json(resendRes);
 	} else {
 		return Response.json({ data: null, error: res.error });
