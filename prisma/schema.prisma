@@ -15,11 +15,13 @@ model TouristicLocation {
   id                 String                 @id
   categoryId         Int
   name               String
-  latitude           Float
-  longitude          Float
+  latitude           Float?
+  longitude          Float?
+  accessible         Json?
+  openingHours       Json?
+  image              String?
   summarizedReview   String?
   rating             Float
-  googlePlaceId      String?                @unique
   tripAdvisorPlaceId String?                @unique
   category           LocationCategory       @relation(fields: [categoryId], references: [id])
   siteReviews        SiteReview[]
