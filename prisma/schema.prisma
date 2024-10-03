@@ -21,7 +21,7 @@ model TouristicLocation {
   openingHours       Json?
   image              String?
   summarizedReview   String?
-  rating             Float
+  rating             Float?
   tripAdvisorPlaceId String?                @unique
   category           LocationCategory       @relation(fields: [categoryId], references: [id])
   siteReviews        SiteReview[]
@@ -38,7 +38,6 @@ model TouristicLocation {
 model SiteReview {
   id            Int               @id @default(autoincrement())
   locationId    String
-  title         String
   body          String
   rating        Float
   extractedDate DateTime
@@ -56,21 +55,7 @@ model SiteReview {
 model Aspect {
   id              Int                    @id @default(autoincrement())
   name            String                 @unique
-  userPreferences UserAspectPreference[]
   locationRatings LocationAspectRating[]
-}
-
-model UserAspectPreference {
-  id              Int    @id @default(autoincrement())
-  userId          Int
-  aspectId        Int
-  preferenceOrder Int
-  user            User   @relation(fields: [userId], references: [id])
-  aspect          Aspect @relation(fields: [aspectId], references: [id])
-
-  @@unique([userId, aspectId])
-  @@index([userId])
-  @@index([aspectId])
 }
 
 model LocationAspectRating {
@@ -98,7 +83,6 @@ model User {
   id                Int                    @id @default(autoincrement())
   email             String                 @unique
   avatarUrl         String?
-  aspectPreferences UserAspectPreference[]
   favoriteLocations FavoriteUserLocation[]
   routeLocations    UserRouteLocation[]
   reviews           SiteReview[]
