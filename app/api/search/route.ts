@@ -115,5 +115,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error in search API:', error);
     return NextResponse.json({ error: 'An error occurred while processing your request' }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 }
