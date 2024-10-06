@@ -15,7 +15,8 @@ export default function Register() {
 	const verify = urlParams.get("verify");
 
 	return (
-		<div className="w-full sm:w-[26rem] shadow sm:p-5  border dark:border-zinc-800 rounded-md">
+		<div className="flex min-h-screen flex-col items-center justify-center p-24">
+			<div className="w-full sm:w-[26rem] shadow sm:p-5  border dark:border-zinc-800 rounded-md">
 			<div className="p-5 space-y-5">
 				<div className="text-center space-y-3">
 					<Image
@@ -38,6 +39,8 @@ export default function Register() {
 				</div>
 			</div>
 			<SignUp redirectTo={next || "/"} />
+			</div>
 		</div>
+		
 	);
 }
