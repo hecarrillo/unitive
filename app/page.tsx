@@ -1,5 +1,5 @@
 import Head from 'next/head';
-import MapWithOverlay from '../components/Map/MapWithOverlay';
+import Main from '../components/Map/Main';
 import '../app/globals.css';
 
 export default function Home() {
@@ -10,7 +10,7 @@ export default function Home() {
         <meta name="description" content="Interactive Google Map with Next.js" />
       </Head>
 
-      <MapWithOverlay />
+      <Main />
     </div>
   );
 }

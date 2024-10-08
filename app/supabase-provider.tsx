@@ -8,7 +8,7 @@ import type { Session } from "@supabase/gotrue-js";
 type SupabaseContext = {
   session: Session | null;
   user: Session["user"] | null;
-  signOut: () => Promise<any>;
+  signOut: () => Promise<void>;
 };
 
 const Context = createContext<SupabaseContext | undefined>(undefined);
