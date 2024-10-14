@@ -2,13 +2,15 @@
 
 import { FC, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
 import Loading from '../utils/Loading'
+import LocationCard from './LocationCard';
+import LocationsBar from './LocationsBar';
 
 interface LatLng {
   lat: number;
   lng: number;
-}
+} 
 
 interface Location {
   id: string;
@@ -54,7 +56,7 @@ const Map: FC = () => {
     const fetchLocations = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/search?latitude=19.4326&longitude=-99.1332&distance=10&page=1&perPage=20');
+        const response = await fetch('/api/search?latitude=19.4326&longitude=-99.1332&distance=10&page=1&perPage=30');
         if (!response.ok) {
           throw new Error('Failed to fetch locations');
         }
@@ -74,18 +76,19 @@ const Map: FC = () => {
     setSelectedPlace(place);
   };
   
-  const handleInfoWindowClose = () => {
+  const handleCardClose = () => {
     setSelectedPlace(null);
   };
   
-  const handleRedirect = (placeId) => {
-    router.push(`/location?id=${placeId}`);
+  const handleRedirect = (placeId: string, placeName: string, summarizedReview: string | null, rating: number | null) => {
+    router.push(`/location?id=${placeId}&name=${placeName}&review=${summarizedReview}&rating=${rating}`);
   };
 
   if (loading) return <Loading/>;
   if (error) return <div>Error: {error}</div>;
 
   return (
+    <div className="relative w-full h-full">
     <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
         <GoogleMap
           center={center}
@@ -99,22 +102,19 @@ const Map: FC = () => {
             onClick={() => handleMarkerClick(place)}
           />
         ))}
-
-        {selectedPlace && (
-          <InfoWindow
-            position={selectedPlace.position}
-            onCloseClick={handleInfoWindowClose}
-          >
-            <div>
-              <h2>{selectedPlace.name}</h2>
-              <button onClick={() => handleRedirect(selectedPlace.id)}>
-                View Details
-              </button>
-            </div>
-          </InfoWindow>
-        )}
         </GoogleMap>
       </LoadScript>
+      <LocationsBar
+        locations={locations}
+      />
+      {selectedPlace && (
+        <LocationCard
+          location={selectedPlace}
+          onClose={handleCardClose}
+          onViewDetails={handleRedirect}
+        />
+      )}
+    </div>
   );
 };
 

@@ -4,15 +4,16 @@ import { FC, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, X, Home, Info, Settings, Search, LogOut } from 'lucide-react';
+import { useSupabase } from '@/app/supabase-provider';
 
-const navItems = [
+let navItems = [
     { name: 'Home', path: '/', icon: Home },
     { name: 'About', path: '/about', icon: Info },
     { name: 'Settings', path: '/settings', icon: Settings },
-    { name: 'Log Out', path: '/logout', icon: LogOut },
 ];
 
 const NavBar: FC = () => {
+    const { signOut, session } = useSupabase();
     const [isNavOpen, setIsNavOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState<string>("");
     const pathname = usePathname();
@@ -30,6 +31,20 @@ const NavBar: FC = () => {
         setIsNavOpen(false);
     }, [pathname]);
 
+    if(session){
+        navItems=[
+        { name: 'Home', path: '/', icon: Home },
+        { name: 'About', path: '/about', icon: Info },
+        { name: 'Settings', path: '/settings', icon: Settings },
+        { name: 'Log Out', path: '/logout', icon: LogOut }
+        ]
+    }else{
+        navItems = [
+            { name: 'Home', path: '/', icon: Home },
+            { name: 'About', path: '/about', icon: Info },
+            { name: 'Settings', path: '/settings', icon: Settings },
+        ]
+    }
     return (
         <>
             {/* Navigation toggle button */}

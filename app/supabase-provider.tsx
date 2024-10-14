@@ -4,8 +4,10 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { createBrowserSupabaseClient } from "@supabase/auth-helpers-nextjs";
 import { useRouter } from "next/navigation";
 import type { Session } from "@supabase/gotrue-js";
+import type { SupabaseClient } from "@supabase/auth-helpers-nextjs";
 
 type SupabaseContext = {
+  supabase: SupabaseClient;
   session: Session | null;
   user: Session["user"] | null;
   signOut: () => Promise<void>;
@@ -47,13 +49,14 @@ export default function SupabaseProvider({
 
   return (
     <Context.Provider value={{
+      supabase, 
       session,  
       user,
       signOut: async () => {
         await supabase.auth.signOut(); 
         router.push('/');
       },
-      }}>
+    }}>
       <>{children}</>
     </Context.Provider>
   );

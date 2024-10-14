@@ -2,8 +2,10 @@
 
 import { FC } from 'react';
 import Map from './MapLayout';
+import { useSupabase } from '@/app/supabase-provider';
 
-const Main: FC = () => {  
+const Main: FC = () => {
+  const { signOut, session } = useSupabase();
   return (
     <div className="relative h-screen w-full">
       {/* Map Component */}

@@ -9,7 +9,10 @@ import Loading from '../../components/utils/Loading'
 
 function LocationDetails() {
   const searchParams = useSearchParams();
-  const id = parseInt(searchParams?.get('id')!);
+  const id = searchParams?.get('id')!;
+  const name = searchParams?.get('name')!;
+  const review = searchParams?.get('review')!;
+  const rating = parseInt(searchParams?.get('rating')!);
   const [locationData, setLocationData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -26,11 +29,11 @@ function LocationDetails() {
         // Simulated data
         const data = {
           id: id,
-          name: `Location ${id}`,
+          name: `${name}`,
           description: `This is the detailed description for Location ${id}.`,
           address: '123 Example Street, City, Country',
-          rating: 2,
-          review: 'very good',
+          rating: rating,
+          review: `${review}`,
           keywords: ['good', 'xd'],
           image: 'https://es.wikipedia.org/wiki/Palacio_de_Bellas_Artes_(Ciudad_de_M%C3%A9xico)#/media/Archivo:Bellas_Artes_01.jpg'
           // Add more details as needed
@@ -45,7 +48,7 @@ function LocationDetails() {
     };
 
     fetchLocationData();
-  }, [id]);
+  }, [id, name, rating, review]);
 
   if (loading) return <Loading/>;
   if (error) return <div>{error}</div>;
