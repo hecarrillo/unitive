@@ -23,29 +23,25 @@ const LocationsBar: React.FC<LocationsBarProps> = ({ locations }) => {
 
   useEffect(() => {
     const fetchImages = async () => {
-      const images: { [key: string]: string } = {};
-      for (const location of locations) {
-        if (location.image) {
-          try {
-            const response = await fetch(
-              `https://places.googleapis.com/v1/${location.image}/media?max_height_px=400`,
-              {
-                headers: {
-                  'X-Goog-Api-Key': process.env.NEXT_PUBLIC_GOOGLE_API_KEY as string,
-                },
-              }
-            );
-            if (response.ok) {
-              const blob = await response.blob();
-              const imageUrl = URL.createObjectURL(blob);
-              images[location.id] = imageUrl;
-            }
-          } catch (error) {
-            console.error(`Error fetching image for location ${location.id}:`, error);
-          }
+      try {
+        const locationIds = locations.filter(location => location.image).map(location => location.id);
+        const response = await fetch('/api/locationImages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ locationIds }),
+        });
+
+        if (response.ok) {
+          const images = await response.json();
+          setLocationImages(images);
+        } else {
+          console.error('Failed to fetch location images', await response.text());
         }
+      } catch (error) {
+        console.error('Error fetching location images:', error);
       }
-      setLocationImages(images);
     };
 
     fetchImages();
