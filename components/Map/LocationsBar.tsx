@@ -46,9 +46,9 @@ const LocationsBar: React.FC<LocationsBarProps> = ({ locations }) => {
 
     fetchImages();
   }, [locations]);
-
+  console.log(locationImages);
   const handleReadMore = (location: Location) => {
-    router.push(`/location?id=${location.id}&name=${location.name}&review=${location.summarizedReview}&rating=${location.rating}`);
+    router.push(`/location?id=${location.id}&name=${location.name}&review=${location.summarizedReview}&rating=${location.rating}&image=${locationImages[location.id]}`);
   };
 
   return (

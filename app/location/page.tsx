@@ -13,6 +13,7 @@ function LocationDetails() {
   const name = searchParams?.get('name')!;
   const review = searchParams?.get('review')!;
   const rating = parseInt(searchParams?.get('rating')!);
+  const image = searchParams?.get('image')!;
   const [locationData, setLocationData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -34,8 +35,8 @@ function LocationDetails() {
           address: '123 Example Street, City, Country',
           rating: rating,
           review: `${review}`,
-          keywords: ['good', 'xd'],
-          image: 'https://es.wikipedia.org/wiki/Palacio_de_Bellas_Artes_(Ciudad_de_M%C3%A9xico)#/media/Archivo:Bellas_Artes_01.jpg'
+          keywords: [],
+          image: `${image}`
           // Add more details as needed
         };
         
@@ -48,7 +49,7 @@ function LocationDetails() {
     };
 
     fetchLocationData();
-  }, [id, name, rating, review]);
+  }, [id, name, rating, review, image]);
 
   if (loading) return <Loading/>;
   if (error) return <div>{error}</div>;

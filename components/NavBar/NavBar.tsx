@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, X, Home, Info, Settings, Search, LogOut } from 'lucide-react';
 import { useSupabase } from '@/app/supabase-provider';
+import SearchBar from './SearchBar';
 
 let navItems = [
     { name: 'Home', path: '/', icon: Home },
@@ -31,26 +32,31 @@ const NavBar: FC = () => {
         setIsNavOpen(false);
     }, [pathname]);
 
+    async function handleLogout() {
+        await signOut();
+    }
+    
     if(session){
-        navItems=[
-        { name: 'Home', path: '/', icon: Home },
-        { name: 'About', path: '/about', icon: Info },
-        { name: 'Settings', path: '/settings', icon: Settings },
-        { name: 'Log Out', path: '/logout', icon: LogOut }
-        ]
-    }else{
         navItems = [
             { name: 'Home', path: '/', icon: Home },
-            { name: 'About', path: '/about', icon: Info },
-            { name: 'Settings', path: '/settings', icon: Settings },
-        ]
+            //{ name: 'About', path: '/about', icon: Info },
+            //{ name: 'Settings', path: '/settings', icon: Settings },
+            { name: 'Log Out', path: '/logout', icon: LogOut, onClick: handleLogout }
+        ];
+    } else {
+        navItems = [
+            { name: 'Home', path: '/', icon: Home },
+            //{ name: 'About', path: '/about', icon: Info },
+            //{ name: 'Settings', path: '/settings', icon: Settings },
+        ];
     }
+
     return (
         <>
             {/* Navigation toggle button */}
             <button
                 onClick={toggleNav}
-                className={`fixed top-4 left-4 z-50 p-2 bg-white rounded-full shadow-lg transition-transform duration-300 ease-in-out ${
+                className={`fixed top-20 left-4 z-50 p-2 bg-white rounded-full shadow-lg transition-transform duration-300 ease-in-out ${
                     isNavOpen ? 'translate-x-64' : 'translate-x-0'
                 }`}
             >
@@ -71,35 +77,36 @@ const NavBar: FC = () => {
                     isNavOpen ? 'translate-x-0' : '-translate-x-full'
                 }`}
             >
-                {/* Search Bar */}
-                <div className="p-4 mt-16">
-                    <form onSubmit={handleSearch} className="flex items-center bg-white rounded-full shadow-lg">
-                        <input
-                            type="text"
-                            placeholder="Search..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="py-2 px-4 rounded-l-full focus:outline-none w-full"
-                        />
-                        <button type="submit" className="p-2 bg-blue-500 rounded-r-full">
-                            <Search size={20} className="text-white" />
-                        </button>
-                    </form>
-                </div>
+                <SearchBar/>
                 <div className="p-4 space-y-4">
                     {navItems.map((item) => (
-                        <Link
-                            key={item.path}
-                            href={item.path}
-                            className={`flex items-center space-x-2 p-2 rounded-lg ${
-                                pathname === item.path
-                                    ? 'bg-blue-100 text-blue-600'
-                                    : 'hover:bg-gray-100'
-                            }`}
-                        >
-                            <item.icon size={20} />
-                            <span>{item.name}</span>
-                        </Link>
+                        item.onClick ? (
+                            <button
+                                key={item.name}
+                                onClick={item.onClick}
+                                className={`flex items-center space-x-2 p-2 rounded-lg w-full text-left ${
+                                    pathname === item.path
+                                        ? 'bg-green-100 text-black-600'
+                                        : 'hover:bg-gray-100'
+                                }`}
+                            >
+                                <item.icon size={20} />
+                                <span>{item.name}</span>
+                            </button>
+                        ) : (
+                            <Link
+                                key={item.path}
+                                href={item.path}
+                                className={`flex items-center space-x-2 p-2 rounded-lg ${
+                                    pathname === item.path
+                                        ? 'bg-green-100 text-black-600'
+                                        : 'hover:bg-gray-100'
+                                }`}
+                            >
+                                <item.icon size={20} />
+                                <span>{item.name}</span>
+                            </Link>
+                        )
                     ))}
                 </div>
             </nav>

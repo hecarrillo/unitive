@@ -56,7 +56,7 @@ const Map: FC = () => {
     const fetchLocations = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/search?latitude=19.4326&longitude=-99.1332&distance=10&page=1&perPage=30');
+        const response = await fetch('/api/search?latitude=19.4326&longitude=-99.1332&distance=10&page=1&perPage=10');
         if (!response.ok) {
           throw new Error('Failed to fetch locations');
         }
@@ -89,7 +89,7 @@ const Map: FC = () => {
 
   return (
     <div className="relative w-full h-full">
-    <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}>
+    <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_API_KEY!}>
         <GoogleMap
           center={center}
           zoom={zoom}
