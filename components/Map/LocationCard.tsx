@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Star, X } from "lucide-react"
+import Image from 'next/image';
 
 const LocationCard = ({ location, onClose, onViewDetails }) => {
   return (
@@ -24,7 +25,7 @@ const LocationCard = ({ location, onClose, onViewDetails }) => {
       <CardContent>
         <div className="w-full h-40 mb-4">
           {location.image ? (
-            <img src={location.image} alt={location.name} className="w-full h-full object-cover rounded-md" />
+            <Image src={location.image} alt={location.name} className="w-full h-full object-cover rounded-md" />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-500 bg-gray-100 rounded-md">
               No image available

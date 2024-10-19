@@ -1,22 +1,40 @@
-// pages/location/[id].js
 "use client";
 
 import React from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Star } from 'lucide-react';
-import Loading from '../../components/utils/Loading'
+import Image from 'next/image';
+import Loading from '../../components/utils/Loading';
+
+interface LocationData {
+  id: string;
+  name: string;
+  description: string;
+  address: string;
+  rating: number;
+  review: string;
+  keywords: string[];
+  image: string;
+}
 
 function LocationDetails() {
   const searchParams = useSearchParams();
-  const id = searchParams?.get('id')!;
-  const name = searchParams?.get('name')!;
-  const review = searchParams?.get('review')!;
-  const rating = parseInt(searchParams?.get('rating')!);
-  const image = searchParams?.get('image')!;
-  const [locationData, setLocationData] = useState(null);
+  // Remove non-null assertions and handle potential undefined values
+  const id = searchParams?.get('id') || '';
+  const name = searchParams?.get('name') || '';
+  const review = searchParams?.get('review') || '';
+  const rating = (() => {
+    const ratingParam = searchParams?.get('rating');
+    if (!ratingParam) return 0;
+    const parsed = parseInt(ratingParam);
+    return isNaN(parsed) ? 0 : parsed;
+  })();
+  const image = searchParams?.get('image') || '';
+
+  const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return; // Wait for the id to be available
@@ -28,16 +46,15 @@ function LocationDetails() {
         await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
         
         // Simulated data
-        const data = {
-          id: id,
-          name: `${name}`,
+        const data: LocationData = {
+          id,
+          name,
           description: `This is the detailed description for Location ${id}.`,
           address: '123 Example Street, City, Country',
-          rating: rating,
-          review: `${review}`,
+          rating,
+          review,
           keywords: [],
-          image: `${image}`
-          // Add more details as needed
+          image
         };
         
         setLocationData(data);
@@ -59,10 +76,12 @@ function LocationDetails() {
     <div className="min-h-screen bg-gray-100 flex justify-center items-center p-4">
       <div className="bg-white rounded-lg shadow-lg w-full max-w-3xl">
         <div className="relative h-64 w-full">
-          <img
+          <Image
             src={locationData.image}
             alt={locationData.name}
-            className="w-full h-full object-cover rounded-t-lg"
+            fill
+            className="object-cover rounded-t-lg"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
         </div>
         <div className="p-6">
@@ -97,6 +116,6 @@ function LocationDetails() {
       </div>
     </div>
   );
-};
+}
 
 export default LocationDetails;

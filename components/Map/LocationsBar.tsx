@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,11 +15,14 @@ interface Location {
 
 interface LocationsBarProps {
   locations: Location[];
+  onScroll?: (scrollLeft: number, scrollWidth: number, clientWidth: number) => void;
+  loading?: boolean;
 }
 
-const LocationsBar: React.FC<LocationsBarProps> = ({ locations }) => {
+const LocationsBar: React.FC<LocationsBarProps> = ({ locations, onScroll, loading }) => {
   const router = useRouter();
   const [locationImages, setLocationImages] = useState<{ [key: string]: string }>({});
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchImages = async () => {
@@ -46,7 +49,50 @@ const LocationsBar: React.FC<LocationsBarProps> = ({ locations }) => {
 
     fetchImages();
   }, [locations]);
-  console.log(locationImages);
+
+  useEffect(() => {
+    console.log("Setting up scroll listener"); // Debug log
+
+    // Find the scrollable viewport
+    const scrollViewport = document.querySelector('[data-radix-scroll-area-viewport]');
+    console.log("Found viewport:", scrollViewport); // Debug log
+
+    if (!scrollViewport || !onScroll) return;
+
+    const handleScroll = () => {
+      console.log("Scroll event triggered"); // Debug log
+      
+      // Type assertion since we know this is a HTML element
+      const viewport = scrollViewport as HTMLElement;
+      const scrollLeft = viewport.scrollLeft;
+      const scrollWidth = viewport.scrollWidth;
+      const clientWidth = viewport.clientWidth;
+      
+      console.log("Scroll state:", {
+        scrollLeft,
+        scrollWidth,
+        clientWidth,
+        nearEnd: scrollWidth - (scrollLeft + clientWidth)
+      });
+
+      // Check if we're near the end of horizontal scroll
+      if (scrollWidth - (scrollLeft + clientWidth) < 100) {
+        console.log("Near end, calling onScroll"); // Debug log
+        onScroll(scrollLeft, scrollWidth, clientWidth);
+      }
+    };
+
+    scrollViewport.addEventListener('scroll', handleScroll, { passive: true });
+    
+    // Verify the event listener was added
+    console.log("Scroll listener added"); // Debug log
+
+    return () => {
+      console.log("Cleaning up scroll listener"); // Debug log
+      scrollViewport.removeEventListener('scroll', handleScroll);
+    };
+  }, [onScroll]);
+
   const handleReadMore = (location: Location) => {
     router.push(`/location?id=${location.id}&name=${location.name}&review=${location.summarizedReview}&rating=${location.rating}&image=${locationImages[location.id]}`);
   };
@@ -96,6 +142,11 @@ const LocationsBar: React.FC<LocationsBarProps> = ({ locations }) => {
               </CardContent>
             </Card>
           ))}
+          {loading && (
+            <div className="flex items-center justify-center w-20">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
+            </div>
+          )}
         </div>
         <ScrollBar orientation="horizontal" className="bg-transparent" />
       </ScrollArea>

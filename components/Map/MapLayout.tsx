@@ -1,9 +1,9 @@
 "use client"
 
-import { FC, useState, useEffect } from 'react';
+import { FC, useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
-import Loading from '../utils/Loading'
+import Loading from '../utils/Loading';
 import LocationCard from './LocationCard';
 import LocationsBar from './LocationsBar';
 
@@ -22,6 +22,7 @@ interface Location {
   rating: number | null;
   distance: number;
   aspectRatings: { [key: string]: number };
+  type?: string;
 }
 
 interface ApiResponse {
@@ -36,86 +37,135 @@ const defaultCenter: LatLng = {
   lng: -99.1332, // Mexico City coordinates
 };
 
-const places = [
-  { id: 1, name: 'Location 1', position: { lat: 40.7128, lng: -74.0060 } },
-  { id: 2, name: 'Location 2', position: { lat: 40.7282, lng: -73.7949 } }  ,
-  // Add more locations as needed
-];
-
-
-const Map: FC = () => {
+const MapLayout: FC = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [locations, setLocations] = useState<Location[]>([]);
   const [center, setCenter] = useState<LatLng>(defaultCenter);
-  const [selectedPlace, setSelectedPlace] = useState(null);
+  const [selectedPlace, setSelectedPlace] = useState<Location | null>(null);
   const [zoom, setZoom] = useState<number>(12);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  useEffect(() => {
-    const fetchLocations = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/search?latitude=19.4326&longitude=-99.1332&distance=10&page=1&perPage=10');
-        if (!response.ok) {
-          throw new Error('Failed to fetch locations');
-        }
-        const data: ApiResponse = await response.json();
-        setLocations(data.locations);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setLoading(false);
+  const fetchLocations = async (page: number, append: boolean = false) => {
+    try {
+      setLoadingMore(true);
+      const response = await fetch(
+        `/api/search?latitude=${defaultCenter.lat}&longitude=${defaultCenter.lng}&distance=10&page=${page}&perPage=10`
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch locations');
       }
-    };
+      
+      const data: ApiResponse = await response.json();
+      
+      if (append) {
+        setLocations(prev => [...prev, ...data.locations]);
+      } else {
+        setLocations(data.locations);
+      }
+      
+      // Check if we've received less than the requested number of items
+      // or if we've reached the total number of items
+      setHasMore(
+        data.locations.length === 10 && 
+        (data.page * data.perPage) < data.total
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoadingMore(false);
+      if (!append) setLoading(false);
+    }
+  };
 
-    fetchLocations();
+  // Handle horizontal scroll in LocationsBar
+  const handleScroll = useCallback((
+    scrollLeft: number, 
+    scrollWidth: number, 
+    clientWidth: number
+  ) => {
+    console.log("HANDLE SCROLL FUNCTION: ");
+    console.log("scrollLeft: " + scrollLeft);
+    console.log("scrollWidth: " + scrollWidth);
+    console.log("clientWidth: " + clientWidth);
+    // Check if we're near the end of the scroll and should load more
+    const scrollThreshold = scrollWidth - (scrollLeft + clientWidth);
+    const shouldLoadMore = scrollThreshold < 100; // Load more when within 100px of the end
+    console.log("scrollThreshold: " + scrollThreshold);
+
+    if (shouldLoadMore && !loadingMore && hasMore) {
+      setCurrentPage(prev => prev + 1);
+      fetchLocations(currentPage + 1, true);
+    }
+  }, [loadingMore, hasMore, currentPage]);
+
+  // Initial load
+  useEffect(() => {
+    fetchLocations(1);
   }, []);
 
-  const handleMarkerClick = (place) => {
+  const handleMarkerClick = (place: Location) => {
     setSelectedPlace(place);
+    // Center the map on the selected place
+    setCenter({
+      lat: place.latitude,
+      lng: place.longitude
+    });
+    setZoom(14); // Zoom in slightly when a place is selected
   };
   
   const handleCardClose = () => {
     setSelectedPlace(null);
-  };
-  
-  const handleRedirect = (placeId: string, placeName: string, summarizedReview: string | null, rating: number | null) => {
-    router.push(`/location?id=${placeId}&name=${placeName}&review=${summarizedReview}&rating=${rating}`);
+    setZoom(12); // Reset zoom when closing the card
   };
 
-  if (loading) return <Loading/>;
+  if (loading) return <Loading />;
   if (error) return <div>Error: {error}</div>;
 
   return (
-    <div className="relative w-full h-full">
-    <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_API_KEY!}>
+    <div className="relative w-full h-screen">
+      <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_API_KEY!}>
         <GoogleMap
           center={center}
           zoom={zoom}
           mapContainerStyle={{ width: '100%', height: '100%' }}
+          options={{
+            zoomControl: true,
+            streetViewControl: false,
+            mapTypeControl: false,
+            fullscreenControl: false,
+          }}
         >
           {locations.map(place => (
-          <Marker
-            key={place.id}
-            position={{lat: place.latitude, lng: place.longitude}}
-            onClick={() => handleMarkerClick(place)}
-          />
-        ))}
+            <Marker
+              key={place.id}
+              position={{lat: place.latitude, lng: place.longitude}}
+              onClick={() => handleMarkerClick(place)}
+              animation={selectedPlace?.id === place.id ? 
+                google.maps.Animation.BOUNCE : undefined}
+            />
+          ))}
         </GoogleMap>
       </LoadScript>
+
       <LocationsBar
         locations={locations}
+        onScroll={handleScroll}
+        loading={loadingMore}
       />
+
       {selectedPlace && (
         <LocationCard
           location={selectedPlace}
           onClose={handleCardClose}
-          onViewDetails={handleRedirect}
         />
       )}
     </div>
   );
 };
 
-export default Map;
+export default MapLayout;

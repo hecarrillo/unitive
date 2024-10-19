@@ -51,6 +51,9 @@ const NavBar: FC = () => {
         ];
     }
 
+    if (!session) {
+        return null;
+    }
     return (
         <>
             {/* Navigation toggle button */}
