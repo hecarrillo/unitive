@@ -1,18 +1,26 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React from "react";
 import SignUp from "./signup";
 import Social from "./social";
 import Image from "next/image";
 import { useSupabase } from "@/app/supabase-provider";
 
-
 export default function Register() {
-  const {session} = useSupabase();
+  const { session } = useSupabase();
+  
+  // session will be undefined during loading, and null when there's no session
+  const isLoading = typeof session === 'undefined';
 
   const queryString = typeof window !== "undefined" ? window?.location.search : "";
   const urlParams = new URLSearchParams(queryString);
   const next = urlParams.get("next");
 
+  // Don't render anything while loading
+  if (isLoading) {
+    return null;
+  }
+
+  // Don't render if there's a session
   if (session) {
     return null;
   }

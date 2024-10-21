@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     for (const location of locations) {
       if (location.image) {
         try {
-          const response = await fetch(
+          const response = await fetch( 
             `https://places.googleapis.com/v1/${location.image}/media?max_height_px=400`,
             {
               headers: {
@@ -35,14 +35,19 @@ export async function POST(request: Request) {
             }
           );
 
+          // const responseJson = await response.json();
+
+          // console.log('image for location:', JSON.stringify(responseJson));
+
           if (response.ok) {
             const buffer = await response.arrayBuffer();
+            if (buffer.byteLength == 0) throw new Error('No buffer returned');
             const base64 = Buffer.from(buffer).toString('base64');
             const mimeType = response.headers.get('content-type');
-            images[location.id] = `data:${mimeType};base64,${base64}`;
+            images[location.id] = `data:${mimeType};base64,${base64}`; 
           }
         } catch (error) {
-          console.error(`Error fetching image for location ${location.id}:`, error);
+          // console.error(`Error fetching image for location ${location.id}:`, errsor);
         }
       }
     }

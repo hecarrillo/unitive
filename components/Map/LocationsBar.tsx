@@ -21,63 +21,23 @@ interface LocationsBarProps {
 
 const LocationsBar: React.FC<LocationsBarProps> = ({ locations, onScroll, loading }) => {
   const router = useRouter();
-  const [locationImages, setLocationImages] = useState<{ [key: string]: string }>({});
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
-    const fetchImages = async () => {
-      try {
-        const locationIds = locations.filter(location => location.image).map(location => location.id);
-        const response = await fetch('/api/locationImages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ locationIds }),
-        });
-
-        if (response.ok) {
-          const images = await response.json();
-          setLocationImages(images);
-        } else {
-          console.error('Failed to fetch location images', await response.text());
-        }
-      } catch (error) {
-        console.error('Error fetching location images:', error);
-      }
-    };
-
-    fetchImages();
-  }, [locations]);
-
-  useEffect(() => {
-    console.log("Setting up scroll listener"); // Debug log
 
     // Find the scrollable viewport
     const scrollViewport = document.querySelector('[data-radix-scroll-area-viewport]');
-    console.log("Found viewport:", scrollViewport); // Debug log
 
     if (!scrollViewport || !onScroll) return;
 
     const handleScroll = () => {
-      console.log("Scroll event triggered"); // Debug log
       
       // Type assertion since we know this is a HTML element
       const viewport = scrollViewport as HTMLElement;
       const scrollLeft = viewport.scrollLeft;
       const scrollWidth = viewport.scrollWidth;
       const clientWidth = viewport.clientWidth;
-      
-      console.log("Scroll state:", {
-        scrollLeft,
-        scrollWidth,
-        clientWidth,
-        nearEnd: scrollWidth - (scrollLeft + clientWidth)
-      });
 
       // Check if we're near the end of horizontal scroll
       if (scrollWidth - (scrollLeft + clientWidth) < 100) {
-        console.log("Near end, calling onScroll"); // Debug log
         onScroll(scrollLeft, scrollWidth, clientWidth);
       }
     };
@@ -94,7 +54,7 @@ const LocationsBar: React.FC<LocationsBarProps> = ({ locations, onScroll, loadin
   }, [onScroll]);
 
   const handleReadMore = (location: Location) => {
-    router.push(`/location?id=${location.id}&name=${location.name}&review=${location.summarizedReview}&rating=${location.rating}&image=${locationImages[location.id]}`);
+    router.push(`/location?id=${location.id}&name=${location.name}&review=${location.summarizedReview}&rating=${location.rating}&image=${location.image}`);
   };
 
   return (
@@ -107,9 +67,9 @@ const LocationsBar: React.FC<LocationsBarProps> = ({ locations, onScroll, loadin
                 <div className="flex">
                   <div className="w-1/3 mr-3">
                     <div className="aspect-square rounded-lg overflow-hidden">
-                      {locationImages[location.id] ? (
+                      {location.image ? (
                         <Image
-                          src={locationImages[location.id]}
+                          src={location.image}
                           alt={location.name}
                           width={120}
                           height={120}

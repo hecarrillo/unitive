@@ -1,8 +1,8 @@
 "use client"
 
 import { FC, useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
+import { GoogleMap, LoadScript, Marker, useLoadScript } from '@react-google-maps/api';
+import { usePathname, useSearchParams } from 'next/navigation';
 import Loading from '../utils/Loading';
 import LocationCard from './LocationCard';
 import LocationsBar from './LocationsBar';
@@ -34,12 +34,22 @@ interface ApiResponse {
 
 const defaultCenter: LatLng = {
   lat: 19.4326,
-  lng: -99.1332, // Mexico City coordinates
+  lng: -99.1332,
 };
 
+const libraries: ("places" | "drawing" | "geometry" | "localContext" | "visualization")[] = ["places"];
+
 const MapLayout: FC = () => {
-  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  
+  // Use useLoadScript hook instead of LoadScript component
+  const { isLoaded, loadError } = useLoadScript({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_API_KEY!,
+  });
+
   const [loading, setLoading] = useState(true);
+  const [initialDataLoaded, setInitialDataLoaded] = useState(false);
   const [locations, setLocations] = useState<Location[]>([]);
   const [center, setCenter] = useState<LatLng>(defaultCenter);
   const [selectedPlace, setSelectedPlace] = useState<Location | null>(null);
@@ -48,115 +58,175 @@ const MapLayout: FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
 
-  const fetchLocations = async (page: number, append: boolean = false) => {
+  const fetchLocationsWithImages = async (page: number, append: boolean = false) => {
     try {
-      setLoadingMore(true);
-      const response = await fetch(
-        `/api/search?latitude=${defaultCenter.lat}&longitude=${defaultCenter.lng}&distance=10&page=${page}&perPage=10`
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
+      
+      const locationResponse = await fetch(
+        `/api/search?latitude=${defaultCenter.lat}&longitude=${defaultCenter.lng}&distance=3&page=${page}&perPage=10`
       );
       
-      if (!response.ok) {
+      if (!locationResponse.ok) {
         throw new Error('Failed to fetch locations');
       }
       
-      const data: ApiResponse = await response.json();
+      const locationData: ApiResponse = await locationResponse.json();
+      let newLocations = locationData.locations;
       
-      if (append) {
-        setLocations(prev => [...prev, ...data.locations]);
-      } else {
-        setLocations(data.locations);
+      const locationIds = newLocations.filter(location => location.image).map(location => location.id);
+      
+      if (locationIds.length > 0) {
+        try {
+          const imageResponse = await fetch('/api/locationImages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ locationIds }),
+          });
+
+          if (imageResponse.ok) {
+            const images = await imageResponse.json();
+            newLocations = newLocations.map(location => ({
+              ...location,
+              image: images[location.id] || null
+            }));
+          } else {
+            newLocations = newLocations.map(location => ({
+              ...location,
+              image: null
+            }));
+          }
+        } catch (imageError) {
+          console.error('Error fetching images:', imageError);
+          newLocations = newLocations.map(location => ({
+            ...location,
+            image: null
+          }));
+        }
       }
-      
-      // Check if we've received less than the requested number of items
-      // or if we've reached the total number of items
+
+      if (append) {
+        setLocations(prev => [...prev, ...newLocations]);
+      } else {
+        setLocations(newLocations);
+      }
+
       setHasMore(
-        data.locations.length === 10 && 
-        (data.page * data.perPage) < data.total
+        newLocations.length === 10 && 
+        (locationData.page * locationData.perPage) < locationData.total
       );
+
+      if (!append) {
+        setInitialDataLoaded(true);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+      setInitialDataLoaded(true);
     } finally {
-      setLoadingMore(false);
-      if (!append) setLoading(false);
+      if (append) {
+        setLoadingMore(false);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
-  // Handle horizontal scroll in LocationsBar
   const handleScroll = useCallback((
     scrollLeft: number, 
     scrollWidth: number, 
     clientWidth: number
   ) => {
-    console.log("HANDLE SCROLL FUNCTION: ");
-    console.log("scrollLeft: " + scrollLeft);
-    console.log("scrollWidth: " + scrollWidth);
-    console.log("clientWidth: " + clientWidth);
-    // Check if we're near the end of the scroll and should load more
     const scrollThreshold = scrollWidth - (scrollLeft + clientWidth);
-    const shouldLoadMore = scrollThreshold < 100; // Load more when within 100px of the end
-    console.log("scrollThreshold: " + scrollThreshold);
+    const shouldLoadMore = scrollThreshold < 100;
 
     if (shouldLoadMore && !loadingMore && hasMore) {
       setCurrentPage(prev => prev + 1);
-      fetchLocations(currentPage + 1, true);
+      fetchLocationsWithImages(currentPage + 1, true);
     }
   }, [loadingMore, hasMore, currentPage]);
 
-  // Initial load
+  // Handle map instance
+  const onLoad = useCallback((map: google.maps.Map) => {
+    setMapInstance(map);
+  }, []);
+
+  const onUnmount = useCallback(() => {
+    setMapInstance(null);
+  }, []);
+
+  // Reset map when pathname or search params change
   useEffect(() => {
-    fetchLocations(1);
+    if (mapInstance) {
+      mapInstance.setZoom(12);
+      mapInstance.setCenter(defaultCenter);
+      setSelectedPlace(null);
+    }
+  }, [pathname, searchParams, mapInstance]);
+
+  // Initial data load
+  useEffect(() => {
+    fetchLocationsWithImages(1);
   }, []);
 
   const handleMarkerClick = (place: Location) => {
     setSelectedPlace(place);
-    // Center the map on the selected place
     setCenter({
       lat: place.latitude,
       lng: place.longitude
     });
-    setZoom(14); // Zoom in slightly when a place is selected
+    setZoom(14);
   };
   
   const handleCardClose = () => {
     setSelectedPlace(null);
-    setZoom(12); // Reset zoom when closing the card
+    setZoom(12);
   };
 
-  if (loading) return <Loading />;
+  if (loadError) return <div>Error loading maps</div>;
+  if (!isLoaded) return <Loading />;
+  if (loading || !initialDataLoaded) return <Loading />;
   if (error) return <div>Error: {error}</div>;
 
   return (
     <div className="relative w-full h-screen">
-      <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_API_KEY!}>
-        <GoogleMap
-          center={center}
-          zoom={zoom}
-          mapContainerStyle={{ width: '100%', height: '100%' }}
-          options={{
-            zoomControl: true,
-            streetViewControl: false,
-            mapTypeControl: false,
-            fullscreenControl: false,
-          }}
-        >
-          {locations.map(place => (
-            <Marker
-              key={place.id}
-              position={{lat: place.latitude, lng: place.longitude}}
-              onClick={() => handleMarkerClick(place)}
-              animation={selectedPlace?.id === place.id ? 
-                google.maps.Animation.BOUNCE : undefined}
-            />
-          ))}
-        </GoogleMap>
-      </LoadScript>
+      <GoogleMap
+        center={center}
+        zoom={zoom}
+        mapContainerStyle={{ width: '100%', height: '100%' }}
+        options={{
+          zoomControl: true,
+          streetViewControl: false,
+          mapTypeControl: false,
+          fullscreenControl: false,
+        }}
+        onLoad={onLoad}
+        onUnmount={onUnmount}
+      >
+        {locations.map(place => (
+          <Marker
+            key={place.id}
+            position={{lat: place.latitude, lng: place.longitude}}
+            onClick={() => handleMarkerClick(place)}
+            animation={selectedPlace?.id === place.id ? 
+              google.maps.Animation.BOUNCE : undefined}
+          />
+        ))}
+      </GoogleMap>
 
-      <LocationsBar
-        locations={locations}
-        onScroll={handleScroll}
-        loading={loadingMore}
-      />
+      {initialDataLoaded && locations.length > 0 && (
+        <LocationsBar
+          locations={locations}
+          onScroll={handleScroll}
+          loading={loadingMore}
+        />
+      )}
 
       {selectedPlace && (
         <LocationCard

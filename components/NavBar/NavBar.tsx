@@ -16,16 +16,9 @@ let navItems = [
 const NavBar: FC = () => {
     const { signOut, session } = useSupabase();
     const [isNavOpen, setIsNavOpen] = useState(false);
-    const [searchQuery, setSearchQuery] = useState<string>("");
     const pathname = usePathname();
 
     const toggleNav = () => setIsNavOpen(!isNavOpen);
-
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault();
-        // You can implement your search functionality here.
-        alert(`Searching for: ${searchQuery}`);
-    };
 
     useEffect(() => {
         // Close the navbar when the route changes
