@@ -24,14 +24,6 @@ export default function Social({ redirectTo }: { redirectTo: string }) {
   return (
     <div className="w-full flex gap-2">
       <Button
-        className="w-full h-8 flex items-center gap-5"
-        variant="outline"
-        onClick={() => loginWithProvider("github")}
-      >
-        <IoLogoGithub />
-        Github
-      </Button>
-      <Button
         className="w-full h-8 flex items-center gap-2"
         variant="outline"
         onClick={() => loginWithProvider("google")}

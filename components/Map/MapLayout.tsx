@@ -568,7 +568,7 @@ const MapLayout: FC = () => {
       </div>
 
       {!isModalOpen && (
-        <div className="fixed top-4 right-3 z-[60]">
+        <div className="absolute top-20 right-4 z-[60]">
           <Button
             className="bg-white hover:bg-gray-100 text-black border shadow-lg rounded-full w-12 h-12 p-0 flex items-center justify-center"
             onClick={handleReturnToMyLocation}

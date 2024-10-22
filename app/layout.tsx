@@ -32,9 +32,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <SupabaseProvider>
-        <Register/>
-        <NavBar/>
-          {children}
+          <Register/>
+          <NavBar/>
+            {children}
         </SupabaseProvider>
       </body>
     </html>

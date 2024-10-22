@@ -10,7 +10,7 @@ const Main: FC = () => {
     <div className="relative h-screen w-full">
       {/* Map Component */}
       <main className="h-full w-full">
-        <Map/>
+        { session ? <Map/> : null }
       </main>
     </div>
   );

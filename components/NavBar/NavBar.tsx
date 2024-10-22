@@ -82,7 +82,6 @@ const NavBar: FC = () => {
                     isNavOpen ? 'translate-x-0' : '-translate-x-full'
                 }`}
             >
-                <SearchBar key={searchBarKey} />
                 <div className="p-4 space-y-4 top-10">
                     {navItems.map((item) => (
                         item.onClick ? (
