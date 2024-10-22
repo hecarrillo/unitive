@@ -63,12 +63,6 @@ const LocationCard: React.FC<LocationCardProps> = ({ location, onClose }) => {
           )}
         </div>
         <p className="text-sm mb-4">{location.summarizedReview || 'No description available.'}</p>
-        <Button 
-          className="w-full" 
-          onClick={() => onViewDetails(location)}
-        >
-          View Details
-        </Button>
       </CardContent>
     </Card>
   );

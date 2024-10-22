@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React from 'react';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -9,8 +8,12 @@ interface Location {
   id: string;
   name: string;
   image: string | null;
+  latitude: number;
+  longitude: number;
   summarizedReview: string | null;
   rating: number | null;
+  distance: number;
+  aspectRatings: { [key: string]: number };
   type?: string;
 }
 
@@ -20,18 +23,19 @@ interface LocationsBarProps {
   loading?: boolean;
   onLocationHover?: (locationId: string | null) => void;
   selectedLocationId?: string | null;
+  onLocationSelect: (location: Location) => void;
 }
 
 const LocationsBar: React.FC<LocationsBarProps> = ({ 
   locations, 
   onScroll, 
-  loading,
+  loading, 
   onLocationHover,
-  selectedLocationId 
+  selectedLocationId,
+  onLocationSelect 
 }) => {
-  const router = useRouter();
 
-  useEffect(() => {
+  React.useEffect(() => {
     const scrollViewport = document.querySelector('[data-radix-scroll-area-viewport]');
     
     if (!scrollViewport || !onScroll) return;
@@ -54,10 +58,6 @@ const LocationsBar: React.FC<LocationsBarProps> = ({
     };
   }, [onScroll]);
 
-  const handleReadMore = (location: Location) => {
-    router.push(`/location?id=${location.id}&name=${location.name}&review=${location.summarizedReview}&rating=${location.rating}&image=${location.image}`);
-  };
-
   return (
     <div className="fixed bottom-0 left-0 right-0 p-4">
       <ScrollArea className="w-full whitespace-nowrap">
@@ -66,7 +66,8 @@ const LocationsBar: React.FC<LocationsBarProps> = ({
             <Card 
               key={location.id} 
               className={`
-                w-80 flex-shrink-0 bg-white transition-all duration-300 overflow-hidden
+                w-80 flex-shrink-0 bg-white transition-all duration-300 overflow-hidden 
+                hover:shadow-lg cursor-pointer
                 ${selectedLocationId === location.id 
                   ? 'ring-2 ring-green-600 shadow-lg' 
                   : 'shadow hover:shadow-xl'
@@ -74,6 +75,7 @@ const LocationsBar: React.FC<LocationsBarProps> = ({
               `}
               onMouseEnter={() => onLocationHover?.(location.id)}
               onMouseLeave={() => onLocationHover?.(null)}
+              onClick={() => onLocationSelect(location)}
             >
               <CardContent className="p-3">
                 <div className="flex">
@@ -97,13 +99,6 @@ const LocationsBar: React.FC<LocationsBarProps> = ({
                   <div className="w-2/3">
                     <h3 className="font-bold text-lg leading-tight mb-1">{location.name}</h3>
                     <p className="text-sm text-gray-600 mb-1">{location.type}</p>
-                    <button
-                      onClick={() => handleReadMore(location)}
-                      className="text-sm text-green-600 hover:underline flex items-center"
-                    >
-                      Ver reseña aquí
-                      <ExternalLink className="w-3 h-3 ml-1" />
-                    </button>
                   </div>
                 </div>
                 <div className="mt-2">

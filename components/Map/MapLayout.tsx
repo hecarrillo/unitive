@@ -70,7 +70,9 @@ const MapLayout: FC = () => {
   const [loadingMore, setLoadingMore] = useState(false);
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
+  const [previousZoom, setPreviousZoom] = useState<number>(12);
+  const [previousCenter, setPreviousCenter] = useState<LatLng>(defaultCenter);
+  
   const fetchLocationsWithImages = async (page: number, append: boolean = false) => {
     try {
       if (append) {
@@ -185,13 +187,22 @@ const MapLayout: FC = () => {
   }, []);
 
   const handleMarkerClick = (place: Location) => {
+    // Store current map state before changing it
+    if (mapInstance) {
+      setPreviousZoom(mapInstance.getZoom() || 12);
+      setPreviousCenter({
+        lat: mapInstance.getCenter()?.lat() || defaultCenter.lat,
+        lng: mapInstance.getCenter()?.lng() || defaultCenter.lng
+      });
+    }
+    
     setSelectedPlace(place);
     setIsModalOpen(true);
     setCenter({
       lat: place.latitude,
       lng: place.longitude,
     });
-    setZoom(14);
+    setZoom(16); // Zoom in closer to the selected location
   };
   
   const handleCardClose = () => {
@@ -199,18 +210,38 @@ const MapLayout: FC = () => {
     setZoom(12);
   };
 
+  const handleLocationSelect = (location: Location) => {
+    // Store current map state before changing it
+    if (mapInstance) {
+      setPreviousZoom(mapInstance.getZoom() || 12);
+      setPreviousCenter({
+        lat: mapInstance.getCenter()?.lat() || defaultCenter.lat,
+        lng: mapInstance.getCenter()?.lng() || defaultCenter.lng
+      });
+    }
+  
+    setSelectedPlace(location);
+    setIsModalOpen(true);
+    setCenter({
+      lat: location.latitude,
+      lng: location.longitude,
+    });
+    setZoom(16); // Zoom in closer to the selected location
+  };
+
   const handleModalClose = () => {
     setIsModalOpen(false);
     setSelectedPlace(null);
-    setZoom(12);
     
-    // Reset map container width
+    // Restore previous map state
+    setZoom(previousZoom);
+    setCenter(previousCenter);
+    
     if (mapInstance) {
       const mapDiv = mapInstance.getDiv();
       mapDiv.style.width = '100%';
       mapDiv.style.position = 'relative';
       google.maps.event.trigger(mapInstance, 'resize');
-      mapInstance.setCenter(defaultCenter);
     }
   };
 
@@ -273,7 +304,7 @@ const MapLayout: FC = () => {
   
       {/* Bottom Locations Bar - Adjusts width based on modal state and screen size */}
       {initialDataLoaded && locations.length > 0 && !isModalOpen && (
-        <div 
+          <div 
           className={`
             fixed bottom-0 left-0 z-10
             transition-all duration-300 ease-in-out
@@ -287,6 +318,7 @@ const MapLayout: FC = () => {
             loading={loadingMore}
             onLocationHover={setHoveredPlace}
             selectedLocationId={selectedPlace?.id}
+            onLocationSelect={handleLocationSelect}
           />
         </div>
       )}
