@@ -15,60 +15,63 @@ export async function GET(request: NextRequest) {
   const page = parseInt(searchParams.get('page') ?? '1');
   const perPage = parseInt(searchParams.get('perPage') ?? '20');
 
-  // Build the WHERE clause based on whether we have coordinates or just a name search
-  let whereClause;
-  if (!isNaN(latitude) && !isNaN(longitude)) {
-    whereClause = Prisma.sql`
-      earth_distance(ll_to_earth(${latitude}, ${longitude}), ll_to_earth(t.latitude, t.longitude)) / 1000 <= ${distance}
-      ${searchName ? Prisma.sql`AND LOWER(t.name) LIKE ${`%${searchName.toLowerCase()}%`}` : Prisma.empty}
-      ${categoryId > 0 ? Prisma.sql`AND t."categoryId" = ${categoryId}` : Prisma.empty}
-      ${aspectId > 0 && minAspectRating > 0
-        ? Prisma.sql`AND EXISTS (
-            SELECT 1 FROM "LocationAspectRating" ar
-            WHERE ar."locationId" = t.id
-              AND ar."aspectId" = ${aspectId}
-              AND ar.rating >= ${minAspectRating}
-          )`
-        : Prisma.empty}
-       AND (SELECT COUNT(*) FROM "SiteReview" sr WHERE sr."locationId" = t.id) >= 5
-    `;
-  } else {
-    // If no coordinates provided, just search by name
-    whereClause = Prisma.sql`
-      ${searchName ? Prisma.sql`LOWER(t.name) LIKE ${`%${searchName.toLowerCase()}%`}` : Prisma.sql`1=1`}
-      ${categoryId > 0 ? Prisma.sql`AND t."categoryId" = ${categoryId}` : Prisma.empty}
-      ${aspectId > 0 && minAspectRating > 0
-        ? Prisma.sql`AND EXISTS (
-            SELECT 1 FROM "LocationAspectRating" ar
-            WHERE ar."locationId" = t.id
-              AND ar."aspectId" = ${aspectId}
-              AND ar.rating >= ${minAspectRating}
-          )`
-        : Prisma.empty}
-    `;
-  }
-
   try {
-    // First, get the total count
+    const whereConditions = [];
+    const queryParams: any[] = [];
+
+    if (!isNaN(latitude) && !isNaN(longitude)) {
+      whereConditions.push(`earth_distance(ll_to_earth(${latitude}, ${longitude}), ll_to_earth(t.latitude, t.longitude)) / 1000 <= ${distance}`);
+    }
+
+    if (searchName) {
+      whereConditions.push(`LOWER(t.name) LIKE LOWER('%${searchName}%')`);
+    }
+
+    if (categoryId > 0) {
+      whereConditions.push(`t."categoryId" = ${categoryId}`);
+    }
+
+    if (aspectId > 0 && minAspectRating > 0) {
+      whereConditions.push(`
+        EXISTS (
+          SELECT 1 FROM "LocationAspectRating" ar
+          WHERE ar."locationId" = t.id
+            AND ar."aspectId" = ${aspectId}
+            AND ar.rating >= ${minAspectRating}
+        )
+      `);
+    }
+
+    const whereClause = whereConditions.length > 0 
+      ? `WHERE ${whereConditions.join(' AND ')}`
+      : '';
+
+    // Count total results
     const countQuery = Prisma.sql`
       SELECT COUNT(*)
       FROM "TouristicLocation" t
-      WHERE ${whereClause}
+      ${Prisma.raw(whereClause)}
     `;
 
     const [{ count }] = await prisma.$queryRaw<[{ count: bigint }]>(countQuery);
     const totalCount = Number(count);
 
-    // Now, fetch locations
-    const selectClause = !isNaN(latitude) && !isNaN(longitude)
-      ? Prisma.sql`t.*, earth_distance(ll_to_earth(${latitude}, ${longitude}), ll_to_earth(t.latitude, t.longitude)) / 1000 AS distance`
-      : Prisma.sql`t.*, NULL as distance`;
+    // Main query for locations
+    const distanceSelect = !isNaN(latitude) && !isNaN(longitude)
+      ? `, earth_distance(ll_to_earth(${latitude}, ${longitude}), ll_to_earth(t.latitude, t.longitude)) / 1000 AS distance`
+      : '';
+
+    const orderBy = !isNaN(latitude) && !isNaN(longitude)
+      ? 'ORDER BY distance'
+      : 'ORDER BY rating DESC NULLS LAST';
 
     const locationsQuery = Prisma.sql`
-      SELECT ${selectClause}
+      SELECT 
+        t.*
+        ${Prisma.raw(distanceSelect)}
       FROM "TouristicLocation" t
-      WHERE ${whereClause}
-      ORDER BY ${!isNaN(latitude) && !isNaN(longitude) ? Prisma.sql`distance` : Prisma.sql`t.rating DESC NULLS LAST`}
+      ${Prisma.raw(whereClause)}
+      ${Prisma.raw(orderBy)}
       LIMIT ${perPage}
       OFFSET ${(page - 1) * perPage}
     `;
@@ -81,6 +84,7 @@ export async function GET(request: NextRequest) {
       perPage,
       total: totalCount,
     });
+
   } catch (error) {
     console.error('Error in search API:', error);
     return NextResponse.json({ error: 'An error occurred while processing your request' }, { status: 500 });
