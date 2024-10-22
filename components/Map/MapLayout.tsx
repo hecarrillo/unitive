@@ -38,7 +38,7 @@ const defaultCenter: LatLng = {
 };
 
 const libraries: ("places" | "drawing" | "geometry" | "localContext" | "visualization")[] = ["places"];
-
+  
 const MapLayout: FC = () => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
