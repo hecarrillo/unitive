@@ -272,7 +272,7 @@ const MapLayout: FC = () => {
       </div>
   
       {/* Bottom Locations Bar - Adjusts width based on modal state and screen size */}
-      {initialDataLoaded && locations.length > 0 && (
+      {initialDataLoaded && locations.length > 0 && !isModalOpen && (
         <div 
           className={`
             fixed bottom-0 left-0 z-10
