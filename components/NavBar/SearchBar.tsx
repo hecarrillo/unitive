@@ -76,7 +76,7 @@ const SearchBar = () => {
       const categoryId = selectedCategory ? categoryMap[selectedCategory as keyof typeof categoryMap] : '';
       
       const locationResponse = await fetch(
-        `/api/search?latitude=${defaultCenter.lat}&longitude=${defaultCenter.lng}&distance=10&categoryId=${categoryId}&page=1&perPage=10`
+        `/api/search?latitude=${defaultCenter.lat}&longitude=${defaultCenter.lng}&distance=10&name=${searchQuery}&categoryId=${categoryId}&page=1&perPage=10`
       );
 
       if (!locationResponse.ok) {
@@ -103,7 +103,8 @@ const SearchBar = () => {
 
   return (
     <div className="relative w-full">
-      <div className="p-4 mt-16 flex items-center space-x-2">
+      {/* Main search container with extra padding bottom for the category tag */}
+      <div className="p-4 pb-8 mt-16 flex items-center space-x-2">
         <div className="flex-grow">
           <form onSubmit={handleSearch} className="flex items-center bg-white rounded-full shadow-lg">
             <input
@@ -122,7 +123,7 @@ const SearchBar = () => {
             </button>
           </form>
 
-          {/* Category Dropdown */}
+          {/* Category Dropdown with adjusted z-index */}
           {showCategories && (
             <div className="absolute mt-2 w-full bg-white rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
               <div className="p-2">
@@ -154,9 +155,9 @@ const SearchBar = () => {
         </button>
       </div>
 
-      {/* Selected Category Tag */}
+      {/* Selected Category Tag with adjusted positioning and z-index */}
       {selectedCategory && (
-        <div className="absolute -mt-2 ml-6">
+        <div className="absolute -mt-6 ml-6 z-20">
           <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
             {selectedCategory}
             <button
@@ -169,11 +170,11 @@ const SearchBar = () => {
         </div>
       )}
 
-      {/* Results Container */}
-      <div className="absolute left-0 right-0 z-40 mx-4">
+      {/* Results Container with adjusted spacing */}
+      <div className="absolute left-0 right-0 z-10 mx-4 mt-4">
         {/* Loading state */}
         {loading && (
-          <div className="mt-2 p-4 bg-white rounded-lg shadow-lg">
+          <div className="p-4 bg-white rounded-lg shadow-lg">
             <div className="animate-pulse flex space-x-4">
               <div className="flex-1 space-y-4 py-1">
                 <div className="h-4 bg-gray-200 rounded w-3/4"></div>
@@ -188,14 +189,14 @@ const SearchBar = () => {
 
         {/* Error state */}
         {error && (
-          <div className="mt-2 p-4 bg-red-50 text-red-600 rounded-lg shadow-lg">
+          <div className="p-4 bg-red-50 text-red-600 rounded-lg shadow-lg">
             {error}
           </div>
         )}
 
         {/* Results list */}
         {!loading && Array.isArray(locations) && locations.length > 0 && (
-          <div className="mt-2 bg-white rounded-lg shadow-lg overflow-hidden max-h-96 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-lg overflow-hidden max-h-96 overflow-y-auto">
             <ul className="divide-y divide-gray-200">
               {locations.map((location: Location) => (
                 <li key={location.id} className="p-4 hover:bg-gray-50 transition-colors cursor-pointer">
@@ -212,7 +213,7 @@ const SearchBar = () => {
 
         {/* No results state */}
         {!loading && !error && searchQuery && (!Array.isArray(locations) || locations.length === 0) && (
-          <div className="mt-2 p-4 bg-gray-50 text-gray-600 rounded-lg shadow-lg text-center">
+          <div className="p-4 bg-gray-50 text-gray-600 rounded-lg shadow-lg text-center">
             No locations found for "{searchQuery}"
           </div>
         )}

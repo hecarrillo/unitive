@@ -69,7 +69,7 @@ const MapLayout: FC = () => {
       }
       
       const locationResponse = await fetch(
-        `/api/search?latitude=${defaultCenter.lat}&longitude=${defaultCenter.lng}&distance=3&page=${page}&perPage=100`
+        `/api/search?latitude=${defaultCenter.lat}&longitude=${defaultCenter.lng}&distance=5&page=${page}&perPage=10`
       );
       
       if (!locationResponse.ok) {
