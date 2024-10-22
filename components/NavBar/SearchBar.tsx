@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Search, Sliders, X } from 'lucide-react';
+import { Search, Sliders, X, AlertCircle } from 'lucide-react';
 
-// Types from original code
 type Location = {
   id: string;
   name: string;
@@ -61,14 +60,29 @@ const SearchBar = () => {
   const [error, setError] = useState<string | null>(null);
   const [showCategories, setShowCategories] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const defaultCenter = {
     lat: 19.4326,
     lng: -99.1332,
   };
 
+  const validateSearch = () => {
+    if (!searchQuery.trim() && !selectedCategory) {
+      setValidationError('Please enter a location name or select a category');
+      return false;
+    }
+    setValidationError(null);
+    return true;
+  };
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateSearch()) {
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -76,7 +90,7 @@ const SearchBar = () => {
       const categoryId = selectedCategory ? categoryMap[selectedCategory as keyof typeof categoryMap] : '';
       
       const locationResponse = await fetch(
-        `/api/search?latitude=${defaultCenter.lat}&longitude=${defaultCenter.lng}&distance=10&categoryId=${categoryId}&page=1&perPage=10`
+        `/api/search?latitude=${defaultCenter.lat}&longitude=${defaultCenter.lng}&distance=10&name=${searchQuery.trim()}&categoryId=${categoryId}&page=1&perPage=10`
       );
 
       if (!locationResponse.ok) {
@@ -95,32 +109,62 @@ const SearchBar = () => {
   const handleCategorySelect = (category: string) => {
     setSelectedCategory(category);
     setShowCategories(false);
+    setValidationError(null);
+    setLocations([]); // Reset locations when category changes
   };
 
   const clearCategory = () => {
     setSelectedCategory(null);
+    setLocations([]); // Reset locations when category is cleared
+    if (!searchQuery.trim()) {
+      setValidationError('Please enter a location name or select a category');
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setValidationError(null);
+    setLocations([]); // Reset locations when search text changes
   };
 
   return (
     <div className="relative w-full">
-      <div className="p-4 mt-16 flex items-center space-x-2">
+      <div className="p-4 pb-8 mt-16 flex items-center space-x-2">
         <div className="flex-grow">
           <form onSubmit={handleSearch} className="flex items-center bg-white rounded-full shadow-lg">
             <input
               type="text"
-              placeholder="Area or location you are in"
+              placeholder="Search by location name..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="py-2 px-4 rounded-full focus:outline-none w-full text-sm"
+              onChange={handleInputChange}
+              className={`py-2 px-4 rounded-full focus:outline-none w-full text-sm ${
+                validationError && !searchQuery.trim() && !selectedCategory
+                  ? 'border-red-300 focus:border-red-500'
+                  : ''
+              }`}
             />
             <button 
               type="button" 
               onClick={() => setShowCategories(!showCategories)}
-              className={`p-2 text-gray-400 hover:text-gray-600 ${showCategories ? 'text-green-500' : ''}`}
+              className={`p-2 ${
+                validationError && !searchQuery.trim() && !selectedCategory
+                  ? 'text-red-400 hover:text-red-600'
+                  : showCategories
+                  ? 'text-green-500'
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
             >
               <Sliders size={20} />
             </button>
           </form>
+
+          {/* Validation Error Message */}
+          {validationError && (
+            <div className="absolute mt-2 flex items-center space-x-1 text-red-600 text-sm">
+              <AlertCircle size={14} />
+              <span>{validationError}</span>
+            </div>
+          )}
 
           {/* Category Dropdown */}
           {showCategories && (
@@ -148,7 +192,12 @@ const SearchBar = () => {
         </div>
         <button 
           onClick={handleSearch}
-          className="p-2 bg-green-500 rounded-full text-white shadow-lg hover:bg-green-600 transition-colors"
+          className={`p-2 rounded-full text-white shadow-lg transition-colors ${
+            !searchQuery.trim() && !selectedCategory
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-green-500 hover:bg-green-600'
+          }`}
+          disabled={!searchQuery.trim() && !selectedCategory}
         >
           <Search size={20} />
         </button>
@@ -156,7 +205,7 @@ const SearchBar = () => {
 
       {/* Selected Category Tag */}
       {selectedCategory && (
-        <div className="absolute -mt-2 ml-6">
+        <div className="absolute -mt-6 ml-6 z-20">
           <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
             {selectedCategory}
             <button
@@ -170,10 +219,9 @@ const SearchBar = () => {
       )}
 
       {/* Results Container */}
-      <div className="absolute left-0 right-0 z-40 mx-4">
-        {/* Loading state */}
+      <div className="absolute left-0 right-0 z-10 mx-4 mt-4">
         {loading && (
-          <div className="mt-2 p-4 bg-white rounded-lg shadow-lg">
+          <div className="p-4 bg-white rounded-lg shadow-lg">
             <div className="animate-pulse flex space-x-4">
               <div className="flex-1 space-y-4 py-1">
                 <div className="h-4 bg-gray-200 rounded w-3/4"></div>
@@ -186,16 +234,14 @@ const SearchBar = () => {
           </div>
         )}
 
-        {/* Error state */}
         {error && (
-          <div className="mt-2 p-4 bg-red-50 text-red-600 rounded-lg shadow-lg">
+          <div className="p-4 bg-red-50 text-red-600 rounded-lg shadow-lg">
             {error}
           </div>
         )}
 
-        {/* Results list */}
         {!loading && Array.isArray(locations) && locations.length > 0 && (
-          <div className="mt-2 bg-white rounded-lg shadow-lg overflow-hidden max-h-96 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-lg overflow-hidden max-h-96 overflow-y-auto">
             <ul className="divide-y divide-gray-200">
               {locations.map((location: Location) => (
                 <li key={location.id} className="p-4 hover:bg-gray-50 transition-colors cursor-pointer">
@@ -210,10 +256,9 @@ const SearchBar = () => {
           </div>
         )}
 
-        {/* No results state */}
-        {!loading && !error && searchQuery && (!Array.isArray(locations) || locations.length === 0) && (
-          <div className="mt-2 p-4 bg-gray-50 text-gray-600 rounded-lg shadow-lg text-center">
-            No locations found for "{searchQuery}"
+        {!loading && !error && (searchQuery || selectedCategory) && (!Array.isArray(locations) || locations.length === 0) && (
+          <div className="p-4 bg-gray-50 text-gray-600 rounded-lg shadow-lg text-center">
+            No locations found {searchQuery ? `for "${searchQuery}"` : 'in this category'}
           </div>
         )}
       </div>

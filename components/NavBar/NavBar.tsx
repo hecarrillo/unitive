@@ -16,13 +16,21 @@ let navItems = [
 const NavBar: FC = () => {
     const { signOut, session } = useSupabase();
     const [isNavOpen, setIsNavOpen] = useState(false);
+    const [searchBarKey, setSearchBarKey] = useState(0); // Add key for SearchBar reset
     const pathname = usePathname();
 
-    const toggleNav = () => setIsNavOpen(!isNavOpen);
+    const toggleNav = () => {
+        if (isNavOpen) {
+            // Increment the key when closing the nav to force SearchBar remount
+            setSearchBarKey(prev => prev + 1);
+        }
+        setIsNavOpen(!isNavOpen);
+    };
 
     useEffect(() => {
-        // Close the navbar when the route changes
+        // Close the navbar and reset SearchBar when the route changes
         setIsNavOpen(false);
+        setSearchBarKey(prev => prev + 1);
     }, [pathname]);
 
     async function handleLogout() {
@@ -47,6 +55,7 @@ const NavBar: FC = () => {
     if (!session) {
         return null;
     }
+    
     return (
         <>
             {/* Navigation toggle button */}
@@ -73,7 +82,7 @@ const NavBar: FC = () => {
                     isNavOpen ? 'translate-x-0' : '-translate-x-full'
                 }`}
             >
-                <SearchBar/>
+                <SearchBar key={searchBarKey} />
                 <div className="p-4 space-y-4 top-10">
                     {navItems.map((item) => (
                         item.onClick ? (
