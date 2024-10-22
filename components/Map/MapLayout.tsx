@@ -8,11 +8,7 @@ import { Button } from '@/components/ui/button';
 import LocationDetailModal from './LocationDetailModal';
 import Loading from '../utils/Loading';
 import LocationsBar from './LocationsBar';
-
-interface LatLng {
-  lat: number;
-  lng: number;
-} 
+import SearchHeader from './SearchHeader';
 
 interface LatLng {
   lat: number;
@@ -43,8 +39,6 @@ const defaultCenter: LatLng = {
   lat: 19.4326,
   lng: -99.1332,
 };
-
-// const libraries: ("places" | "drawing" | "geometry" | "localContext" | "visualization")[] = ["places"];
 
 const getMarkerIcon = (isHovered: boolean, isSelected: boolean) => ({
   path: google.maps.SymbolPath.CIRCLE,
@@ -87,85 +81,101 @@ const MapLayout: FC = () => {
     center: LatLng;
     distance: number;
   } | null>(null);
+  const [activeFilters, setActiveFilters] = useState<{
+    searchTerm: string;
+    categoryIds: number[];
+    aspectIds: number[];
+    radius: number | null;
+  } | null>(null);
 
-  // const fetchLocationsWithImages = async (page: number, append: boolean = false) => {
-  //   try {
-  //     if (append) {
-  //       setLoadingMore(true);
-  //     } else {
-  //       setLoading(true);
-  //     }
+  const handleFiltersChange = useCallback(async (filters: {
+    searchTerm: string;
+    categoryIds: number[];
+    aspectIds: number[];
+    radius: number | null;
+  }) => {
+    if (!mapInstance) return;
+  
+    setIsLoadingNewArea(true);
+    const center = mapInstance.getCenter();
+    if (!center) return;
+  
+    const searchParams = new URLSearchParams({
+      latitude: center.lat().toString(),
+      longitude: center.lng().toString(),
+      page: '1',
+      perPage: '60'
+    });
+  
+    // Only add radius if it's provided (not null)
+    if (filters.radius !== null) {
+      searchParams.append('distance', filters.radius.toString());
+    }
+  
+    // Only add non-empty parameters
+    if (filters.searchTerm.trim()) {
+      searchParams.append('name', filters.searchTerm.trim());
+    }
+  
+    if (filters.categoryIds.length > 0) {
+      searchParams.append('categoryIds', filters.categoryIds.join(','));
+    }
+  
+    if (filters.aspectIds.length > 0) {
+      searchParams.append('aspectIds', filters.aspectIds.join(','));
+    }
+  
+    try {
+      const response = await fetch(`/api/search?${searchParams.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch locations');
       
-  //     const locationResponse = await fetch(
-  //       `/api/search?latitude=${defaultCenter.lat}&longitude=${defaultCenter.lng}&distance=5&page=${page}&perPage=10`
-  //     );
+      const data: ApiResponse = await response.json();
       
-  //     if (!locationResponse.ok) {
-  //       throw new Error('Failed to fetch locations');
-  //     }
+      const locationIds = data.locations
+        .filter(location => location.image)
+        .map(location => location.id);
       
-  //     const locationData: ApiResponse = await locationResponse.json();
-  //     let newLocations = locationData.locations;
+      let processedLocations = data.locations;
       
-  //     const locationIds = newLocations.filter(location => location.image).map(location => location.id);
+      if (locationIds.length > 0) {
+        const imageResponse = await fetch('/api/locationImages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ locationIds }),
+        });
+  
+        if (imageResponse.ok) {
+          const images = await imageResponse.json();
+          processedLocations = processedLocations.map(location => ({
+            ...location,
+            image: images[location.id] || null
+          }));
+        }
+      }
+  
+      setLocations(processedLocations);
+      setHasMore(data.page * data.perPage < data.total);
+      setCurrentPage(1);
       
-  //     if (locationIds.length > 0) {
-  //       try {
-  //         const imageResponse = await fetch('/api/locationImages', {
-  //           method: 'POST',
-  //           headers: {
-  //             'Content-Type': 'application/json',
-  //           },
-  //           body: JSON.stringify({ locationIds }),
-  //         });
-
-  //         if (imageResponse.ok) {
-  //           const images = await imageResponse.json();
-  //           newLocations = newLocations.map(location => ({
-  //             ...location,
-  //             image: images[location.id] || null
-  //           }));
-  //         } else {
-  //           newLocations = newLocations.map(location => ({
-  //             ...location,
-  //             image: null
-  //           }));
-  //         }
-  //       } catch (imageError) {
-  //         console.error('Error fetching images:', imageError);
-  //         newLocations = newLocations.map(location => ({
-  //           ...location,
-  //           image: null
-  //         }));
-  //       }
-  //     }
-
-  //     if (append) {
-  //       setLocations(prev => [...prev, ...newLocations]);
-  //     } else {
-  //       setLocations(newLocations);
-  //     }
-
-  //     setHasMore(
-  //       newLocations.length === 10 && 
-  //       (locationData.page * locationData.perPage) < locationData.total
-  //     );
-
-  //     if (!append) {
-  //       setInitialDataLoaded(true);
-  //     }
-  //   } catch (err) {
-  //     setError(err instanceof Error ? err.message : 'An error occurred');
-  //     setInitialDataLoaded(true);
-  //   } finally {
-  //     if (append) {
-  //       setLoadingMore(false);
-  //     } else {
-  //       setLoading(false);
-  //     }
-  //   }
-  // };
-
+      // Only update search area if we're using radius-based search
+      if (filters.radius !== null) {
+        setCurrentSearchArea({ 
+          center: { lat: center.lat(), lng: center.lng() }, 
+          distance: filters.radius 
+        });
+      }
+      
+      setActiveFilters(filters);
+      setHasMovedMap(false);
+      
+    } catch (error) {
+      console.error('Error fetching filtered locations:', error);
+      setError('Failed to load locations');
+    } finally {
+      setIsLoadingNewArea(false);
+    }
+  }, [mapInstance]);
+  
   const getUserLocation = useCallback(async () => {
     setIsLoadingLocation(true);
     try {
@@ -273,6 +283,12 @@ const MapLayout: FC = () => {
     const center = mapInstance.getCenter();
     if (!center) return;
     
+    // Don't show "search this area" if there's a text search active
+    if (activeFilters?.searchTerm) {
+      setHasMovedMap(false);
+      return;
+    }
+    
     const currentCenter = {
       lat: center.lat(),
       lng: center.lng()
@@ -290,7 +306,6 @@ const MapLayout: FC = () => {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     const movedDistance = R * c;
   
-    // Get the visible radius of the map
     const bounds = mapInstance.getBounds();
     if (!bounds) return;
   
@@ -299,40 +314,16 @@ const MapLayout: FC = () => {
     const visibleRadius = google.maps.geometry.spherical.computeDistanceBetween(
       center,
       ne
-    ) / 1000; // Convert to km
+    ) / 1000;
   
     // If moved more than 30% of the visible radius or 1km (whichever is smaller)
-    const threshold = Math.min(visibleRadius * 0.2, 1);
+    const threshold = Math.min(visibleRadius * 0.3, 1);
     if (movedDistance > threshold) {
       setHasMovedMap(true);
+    } else {
+      setHasMovedMap(false);
     }
-  }, [mapInstance, currentSearchArea]);
-
-  // Load locations in current view
-  const handleLoadCurrentArea = useCallback(async () => {
-    if (!mapInstance) return;
-    
-    setIsLoadingNewArea(true);
-    const center = mapInstance.getCenter();
-    if (!center) return;
-
-    const bounds = mapInstance.getBounds();
-    if (!bounds) return;
-
-    // Calculate radius based on visible map area
-    const ne = bounds.getNorthEast();
-    const sw = bounds.getSouthWest();
-    const latDistance = Math.abs(ne.lat() - sw.lat()) * 111.32 / 2; // km
-    const lngDistance = Math.abs(ne.lng() - sw.lng()) * 111.32 * 
-      Math.cos(center.lat() * Math.PI / 180) / 2; // km
-    
-    const radius = Math.min(latDistance, lngDistance);
-
-    await fetchLocationsInArea(
-      { lat: center.lat(), lng: center.lng() },
-      Math.ceil(radius)
-    );
-  }, [mapInstance]);
+  }, [mapInstance, currentSearchArea, activeFilters?.searchTerm]);
 
   const handleScroll = useCallback((
     scrollLeft: number, 
@@ -393,6 +384,40 @@ const MapLayout: FC = () => {
     setZoom(16); // Zoom in closer to the selected location
   };
 
+  const handleLoadCurrentArea = useCallback(async () => {
+  if (!mapInstance) return;
+  
+  setIsLoadingNewArea(true);
+  const center = mapInstance.getCenter();
+  if (!center) return;
+
+  const bounds = mapInstance.getBounds();
+  if (!bounds) return;
+
+  // Calculate radius based on visible map area
+  const ne = bounds.getNorthEast();
+  const sw = bounds.getSouthWest();
+  const radius = Math.min(
+    Math.abs(ne.lat() - sw.lat()) * 111.32 / 2,
+    Math.abs(ne.lng() - sw.lng()) * 111.32 * 
+      Math.cos(center.lat() * Math.PI / 180) / 2
+  );
+
+  // Preserve category and aspect filters, but clear search term
+  if (activeFilters) {
+    setActiveFilters({
+      ...activeFilters,
+      searchTerm: '',
+      radius: Math.ceil(radius)
+    });
+  }
+
+  await fetchLocationsInArea(
+    { lat: center.lat(), lng: center.lng() },
+    Math.ceil(radius)
+  );
+}, [mapInstance, activeFilters]);
+
   const handleLocationSelect = (location: Location) => {
     // Store current map state before changing it
     if (mapInstance) {
@@ -435,7 +460,15 @@ const MapLayout: FC = () => {
   
   return (
     <div className="relative w-full h-screen overflow-hidden">
-      {/* Map Container - Adjusts width based on modal state and screen size */}
+      {
+        !isModalOpen &&
+          <SearchHeader 
+            onFiltersChange={handleFiltersChange}
+            initialRadius={currentSearchArea?.distance ?? 5}
+          />
+      }
+      
+      {/* Map Container - Adjust top padding to account for SearchHeader */}
       <div 
         className={`
           absolute transition-all duration-300 ease-in-out h-full
@@ -483,8 +516,7 @@ const MapLayout: FC = () => {
               }}
             />
           )}
-  
-          {/* Location Markers */}
+
           {locations.map(place => {
             const isHovered = hoveredPlace === place.id;
             const isSelected = selectedPlace?.id === place.id;
@@ -501,9 +533,9 @@ const MapLayout: FC = () => {
           })}
         </GoogleMap>
   
-        {/* Map Controls Overlay */}
-        <div className="absolute top-4 left-4 flex flex-col gap-2">
-          {hasMovedMap && (
+      {/* Map Controls Overlay */}
+      <div className="absolute top-20 left-4 flex flex-col gap-2 z-[60]"> 
+      {hasMovedMap && (
             <Button
               className="bg-white text-black hover:text-black shadow-lg hover:shadow-xl border"
               onClick={handleLoadCurrentArea}
@@ -517,7 +549,7 @@ const MapLayout: FC = () => {
               Load places in this area
             </Button>
           )}
-  
+
           {isLoadingLocation && (
             <div className="bg-white px-4 py-2 rounded-lg shadow-lg flex items-center">
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -526,6 +558,7 @@ const MapLayout: FC = () => {
           )}
         </div>
       </div>
+
   
       {/* Bottom Locations Bar - Adjusts width based on modal state and screen size */}
       {initialDataLoaded && locations.length > 0 && !isModalOpen && (
