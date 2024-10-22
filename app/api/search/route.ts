@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client';
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   
+  const searchName = searchParams.get('name')?.trim() || '';
   const latitude = parseFloat(searchParams.get('latitude') ?? '');
   const longitude = parseFloat(searchParams.get('longitude') ?? '');
   const distance = parseFloat(searchParams.get('distance') ?? '10'); // km
@@ -14,26 +15,38 @@ export async function GET(request: NextRequest) {
   const page = parseInt(searchParams.get('page') ?? '1');
   const perPage = parseInt(searchParams.get('perPage') ?? '20');
 
-  if (isNaN(latitude) || isNaN(longitude)) {
-    return NextResponse.json({ error: 'Invalid latitude or longitude' }, { status: 400 });
+  // Build the WHERE clause based on whether we have coordinates or just a name search
+  let whereClause;
+  if (!isNaN(latitude) && !isNaN(longitude)) {
+    whereClause = Prisma.sql`
+      earth_distance(ll_to_earth(${latitude}, ${longitude}), ll_to_earth(t.latitude, t.longitude)) / 1000 <= ${distance}
+      ${searchName ? Prisma.sql`AND LOWER(t.name) LIKE ${`%${searchName.toLowerCase()}%`}` : Prisma.empty}
+      ${categoryId > 0 ? Prisma.sql`AND t."categoryId" = ${categoryId}` : Prisma.empty}
+      ${aspectId > 0 && minAspectRating > 0
+        ? Prisma.sql`AND EXISTS (
+            SELECT 1 FROM "LocationAspectRating" ar
+            WHERE ar."locationId" = t.id
+              AND ar."aspectId" = ${aspectId}
+              AND ar.rating >= ${minAspectRating}
+          )`
+        : Prisma.empty}
+       AND (SELECT COUNT(*) FROM "SiteReview" sr WHERE sr."locationId" = t.id) >= 5
+    `;
+  } else {
+    // If no coordinates provided, just search by name
+    whereClause = Prisma.sql`
+      ${searchName ? Prisma.sql`LOWER(t.name) LIKE ${`%${searchName.toLowerCase()}%`}` : Prisma.sql`1=1`}
+      ${categoryId > 0 ? Prisma.sql`AND t."categoryId" = ${categoryId}` : Prisma.empty}
+      ${aspectId > 0 && minAspectRating > 0
+        ? Prisma.sql`AND EXISTS (
+            SELECT 1 FROM "LocationAspectRating" ar
+            WHERE ar."locationId" = t.id
+              AND ar."aspectId" = ${aspectId}
+              AND ar.rating >= ${minAspectRating}
+          )`
+        : Prisma.empty}
+    `;
   }
-
-  const skip = (page - 1) * perPage;
-
-  // Common WHERE clause for both queries
-  const whereClause = Prisma.sql`
-    earth_distance(ll_to_earth(${latitude}, ${longitude}), ll_to_earth(t.latitude, t.longitude)) / 1000 <= ${distance}
-    ${categoryId > 0 ? Prisma.sql`AND t."categoryId" = ${categoryId}` : Prisma.empty}
-    ${aspectId > 0 && minAspectRating > 0
-      ? Prisma.sql`AND EXISTS (
-          SELECT 1 FROM "LocationAspectRating" ar
-          WHERE ar."locationId" = t.id
-            AND ar."aspectId" = ${aspectId}
-            AND ar.rating >= ${minAspectRating}
-        )`
-      : Prisma.empty}
-    AND (SELECT COUNT(*) FROM "SiteReview" sr WHERE sr."locationId" = t.id) >= 5
-  `;
 
   try {
     // First, get the total count
@@ -46,69 +59,24 @@ export async function GET(request: NextRequest) {
     const [{ count }] = await prisma.$queryRaw<[{ count: bigint }]>(countQuery);
     const totalCount = Number(count);
 
-    // Now, fetch all locations using cursor-based pagination
-    let allLocations: Array<{
-      id: string;
-      name: string;
-      image: string | null;
-      latitude: number;
-      longitude: number;
-      summarizedReview: string | null;
-      rating: number | null;
-      distance: number;
-    }> = [];
+    // Now, fetch locations
+    const selectClause = !isNaN(latitude) && !isNaN(longitude)
+      ? Prisma.sql`t.*, earth_distance(ll_to_earth(${latitude}, ${longitude}), ll_to_earth(t.latitude, t.longitude)) / 1000 AS distance`
+      : Prisma.sql`t.*, NULL as distance`;
 
-    let lastId = '';
-    while (allLocations.length < totalCount) {
-      const batchQuery = Prisma.sql`
-        SELECT 
-          t.*,
-          earth_distance(ll_to_earth(${latitude}, ${longitude}), ll_to_earth(t.latitude, t.longitude)) / 1000 AS distance
-        FROM "TouristicLocation" t
-        WHERE ${whereClause}
-          AND t.id > ${lastId}
-        ORDER BY t.id
-        LIMIT 1000
-      `;
+    const locationsQuery = Prisma.sql`
+      SELECT ${selectClause}
+      FROM "TouristicLocation" t
+      WHERE ${whereClause}
+      ORDER BY ${!isNaN(latitude) && !isNaN(longitude) ? Prisma.sql`distance` : Prisma.sql`t.rating DESC NULLS LAST`}
+      LIMIT ${perPage}
+      OFFSET ${(page - 1) * perPage}
+    `;
 
-      const batchLocations: typeof allLocations = await prisma.$queryRaw(batchQuery);
-      allLocations = allLocations.concat(batchLocations);
-      
-      if (batchLocations.length > 0) {
-        lastId = batchLocations[batchLocations.length - 1].id;
-      } else {
-        break;
-      }
-    }
-
-    // Sort the results by rating in descending order
-    allLocations.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-
-    // Apply pagination to the sorted results
-    const paginatedLocations = allLocations.slice(skip, skip + perPage);
-
-    // Fetch aspect ratings for paginated locations
-    const locationIds = paginatedLocations.map(loc => loc.id);
-    const aspectRatings = await prisma.locationAspectRating.findMany({
-      where: { locationId: { in: locationIds } },
-      include: { aspect: true },
-    });
-
-    // Organize aspect ratings by location
-    const aspectRatingsByLocation = aspectRatings.reduce((acc: { [key: string]: { [key: string]: number } }, rating) => {
-      if (!acc[rating.locationId]) acc[rating.locationId] = {};
-      acc[rating.locationId][rating.aspect.name] = rating.rating;
-      return acc;
-    }, {});
-
-    // Add aspect ratings to each location
-    const locationsWithAspects = paginatedLocations.map(location => ({
-      ...location,
-      aspectRatings: aspectRatingsByLocation[location.id] || {},
-    }));
+    const locations = await prisma.$queryRaw(locationsQuery);
 
     return NextResponse.json({
-      locations: locationsWithAspects,
+      locations,
       page,
       perPage,
       total: totalCount,
