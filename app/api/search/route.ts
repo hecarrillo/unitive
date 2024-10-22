@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
             AND ar.rating >= ${minAspectRating}
         )`
       : Prisma.empty}
+    AND (SELECT COUNT(*) FROM "SiteReview" sr WHERE sr."locationId" = t.id) >= 5
   `;
 
   try {

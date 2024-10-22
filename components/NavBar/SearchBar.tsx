@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Search, Sliders } from 'lucide-react';
+import { Search, Sliders, X } from 'lucide-react';
 
-// Define location type
+// Types from original code
 type Location = {
   id: string;
   name: string;
@@ -23,7 +23,6 @@ interface ApiResponse {
   total: number;
 }
 
-// Define category mapping
 const categoryMap = {
   'natural heritage': 1,
   'scenic lookout': 2,
@@ -60,6 +59,8 @@ const SearchBar = () => {
   const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCategories, setShowCategories] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const defaultCenter = {
     lat: 19.4326,
@@ -72,13 +73,8 @@ const SearchBar = () => {
     setError(null);
 
     try {
-      const matchedCategory = Object.entries(categoryMap).find(([category]) =>
-        searchQuery.toLowerCase().includes(category.toLowerCase())
-      );
+      const categoryId = selectedCategory ? categoryMap[selectedCategory as keyof typeof categoryMap] : '';
       
-      const categoryId = matchedCategory ? matchedCategory[1] : '';
-      
-      console.log('Fetching locations...'); // Debug log
       const locationResponse = await fetch(
         `/api/search?latitude=${defaultCenter.lat}&longitude=${defaultCenter.lng}&distance=10&categoryId=${categoryId}&page=1&perPage=10`
       );
@@ -87,17 +83,22 @@ const SearchBar = () => {
         throw new Error('Failed to fetch locations');
       }
       const response: ApiResponse = await locationResponse.json();
-      
-      // Check if the response data is in the expected format
-      let locationData = response.locations;
-      setLocations(locationData);
-
+      setLocations(response.locations);
     } catch (err) {
       console.error('Search error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCategorySelect = (category: string) => {
+    setSelectedCategory(category);
+    setShowCategories(false);
+  };
+
+  const clearCategory = () => {
+    setSelectedCategory(null);
   };
 
   return (
@@ -112,10 +113,38 @@ const SearchBar = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="py-2 px-4 rounded-full focus:outline-none w-full text-sm"
             />
-            <button type="button" className="p-2 text-gray-400 hover:text-gray-600">
+            <button 
+              type="button" 
+              onClick={() => setShowCategories(!showCategories)}
+              className={`p-2 text-gray-400 hover:text-gray-600 ${showCategories ? 'text-green-500' : ''}`}
+            >
               <Sliders size={20} />
             </button>
           </form>
+
+          {/* Category Dropdown */}
+          {showCategories && (
+            <div className="absolute mt-2 w-full bg-white rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+              <div className="p-2">
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Select Category</h3>
+                <div className="space-y-1">
+                  {Object.keys(categoryMap).map((category) => (
+                    <button
+                      key={category}
+                      onClick={() => handleCategorySelect(category)}
+                      className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
+                        selectedCategory === category
+                          ? 'bg-green-50 text-green-700'
+                          : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         <button 
           onClick={handleSearch}
@@ -125,8 +154,23 @@ const SearchBar = () => {
         </button>
       </div>
 
+      {/* Selected Category Tag */}
+      {selectedCategory && (
+        <div className="absolute -mt-2 ml-6">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
+            {selectedCategory}
+            <button
+              onClick={clearCategory}
+              className="ml-2 text-green-600 hover:text-green-800"
+            >
+              <X size={14} />
+            </button>
+          </span>
+        </div>
+      )}
+
       {/* Results Container */}
-      <div className="absolute left-0 right-0 z-50 mx-4">
+      <div className="absolute left-0 right-0 z-40 mx-4">
         {/* Loading state */}
         {loading && (
           <div className="mt-2 p-4 bg-white rounded-lg shadow-lg">

@@ -21,36 +21,40 @@ export async function POST(request: Request) {
       },
     });
 
-    const images: { [key: string]: string } = {};
+    const fetchImage = async (location: { id: string; image: string | null }) => {
+      if (!location.image) return null;
 
-    for (const location of locations) {
-      if (location.image) {
-        try {
-          const response = await fetch( 
-            `https://places.googleapis.com/v1/${location.image}/media?max_height_px=400`,
-            {
-              headers: {
-                'X-Goog-Api-Key': process.env.GOOGLE_API_KEY as string,
-              },
-            }
-          );
-
-          // const responseJson = await response.json();
-
-          // console.log('image for location:', JSON.stringify(responseJson));
-
-          if (response.ok) {
-            const buffer = await response.arrayBuffer();
-            if (buffer.byteLength == 0) throw new Error('No buffer returned');
-            const base64 = Buffer.from(buffer).toString('base64');
-            const mimeType = response.headers.get('content-type');
-            images[location.id] = `data:${mimeType};base64,${base64}`; 
+      try {
+        const response = await fetch(
+          `https://places.googleapis.com/v1/${location.image}/media?max_height_px=40`,
+          {
+            headers: {
+              'X-Goog-Api-Key': process.env.GOOGLE_API_KEY as string,
+            },
           }
-        } catch (error) {
-          // console.error(`Error fetching image for location ${location.id}:`, errsor);
+        );
+
+        if (response.ok) {
+          const buffer = await response.arrayBuffer();
+          if (buffer.byteLength == 0) throw new Error('No buffer returned');
+          const base64 = Buffer.from(buffer).toString('base64');
+          const mimeType = response.headers.get('content-type');
+          return { id: location.id, image: `data:${mimeType};base64,${base64}` };
         }
+      } catch (error) {
+        console.error(`Error fetching image for location ${location.id}:`, error);
       }
-    }
+      return null;
+    };
+
+    const imageResults = await Promise.all(locations.map(fetchImage));
+
+    const images: { [key: string]: string } = {};
+    imageResults.forEach(result => {
+      if (result) {
+        images[result.id] = result.image;
+      }
+    });
 
     return NextResponse.json(images);
   } catch (error) {
