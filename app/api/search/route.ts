@@ -16,22 +16,25 @@ export async function GET(request: NextRequest) {
   const perPage = parseInt(searchParams.get('perPage') ?? '20');
 
   try {
-    const whereConditions = [];
+    const conditions = [
+      // Add base condition for minimum review count and cast COUNT to integer
+      `(SELECT COUNT(*)::integer FROM "SiteReview" sr WHERE sr."locationId" = t.id) >= 5`
+    ];
 
     if (!isNaN(latitude) && !isNaN(longitude)) {
-      whereConditions.push(`earth_distance(ll_to_earth(${latitude}, ${longitude}), ll_to_earth(t.latitude, t.longitude)) / 1000 <= ${distance}`);
+      conditions.push(`earth_distance(ll_to_earth(${latitude}, ${longitude}), ll_to_earth(t.latitude, t.longitude)) / 1000 <= ${distance}`);
     }
 
     if (searchName) {
-      whereConditions.push(`LOWER(t.name) LIKE LOWER('%${searchName}%')`);
+      conditions.push(`LOWER(t.name) LIKE LOWER('%${searchName}%')`);
     }
 
     if (categoryId > 0) {
-      whereConditions.push(`t."categoryId" = ${categoryId}`);
+      conditions.push(`t."categoryId" = ${categoryId}`);
     }
 
     if (aspectId > 0 && minAspectRating > 0) {
-      whereConditions.push(`
+      conditions.push(`
         EXISTS (
           SELECT 1 FROM "LocationAspectRating" ar
           WHERE ar."locationId" = t.id
@@ -41,41 +44,43 @@ export async function GET(request: NextRequest) {
       `);
     }
 
-    const whereClause = whereConditions.length > 0 
-      ? `WHERE ${whereConditions.join(' AND ')}`
+    const whereClause = conditions.length > 0 
+      ? `WHERE ${conditions.join(' AND ')}`
       : '';
 
-    // Count total results
-    const countQuery = Prisma.sql`
-      SELECT COUNT(*)
-      FROM "TouristicLocation" t
-      ${Prisma.raw(whereClause)}
-    `;
+    // Count total results with integer cast
+    const countResult = await prisma.$queryRaw<[{ count: number }]>(
+      Prisma.sql`
+        SELECT COUNT(*)::integer as count
+        FROM "TouristicLocation" t
+        ${Prisma.raw(whereClause)}
+      `
+    );
 
-    const [{ count }] = await prisma.$queryRaw<[{ count: bigint }]>(countQuery);
-    const totalCount = Number(count);
+    const totalCount = countResult[0].count;
 
     // Main query for locations
     const distanceSelect = !isNaN(latitude) && !isNaN(longitude)
-      ? `, earth_distance(ll_to_earth(${latitude}, ${longitude}), ll_to_earth(t.latitude, t.longitude)) / 1000 AS distance`
-      : '';
+      ? Prisma.raw(`, earth_distance(ll_to_earth(${latitude}, ${longitude}), ll_to_earth(t.latitude, t.longitude)) / 1000 AS distance`)
+      : Prisma.raw(``);
 
     const orderBy = !isNaN(latitude) && !isNaN(longitude)
       ? 'ORDER BY distance'
       : 'ORDER BY rating DESC NULLS LAST';
 
-    const locationsQuery = Prisma.sql`
-      SELECT 
-        t.*
-        ${Prisma.raw(distanceSelect)}
-      FROM "TouristicLocation" t
-      ${Prisma.raw(whereClause)}
-      ${Prisma.raw(orderBy)}
-      LIMIT ${perPage}
-      OFFSET ${(page - 1) * perPage}
-    `;
-
-    const locations = await prisma.$queryRaw(locationsQuery);
+    const locations = await prisma.$queryRaw(
+      Prisma.sql`
+        SELECT 
+          t.*,
+          (SELECT COUNT(*)::integer FROM "SiteReview" sr WHERE sr."locationId" = t.id) as review_count
+          ${distanceSelect}
+        FROM "TouristicLocation" t
+        ${Prisma.raw(whereClause)}
+        ${Prisma.raw(orderBy)}
+        LIMIT ${perPage}
+        OFFSET ${(page - 1) * perPage}
+      `
+    );
 
     return NextResponse.json({
       locations,
@@ -86,7 +91,10 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error in search API:', error);
-    return NextResponse.json({ error: 'An error occurred while processing your request' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'An error occurred while processing your request' }, 
+      { status: 500 }
+    );
   } finally {
     await prisma.$disconnect();
   }
