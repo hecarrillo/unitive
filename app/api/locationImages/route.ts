@@ -1,3 +1,4 @@
+// app/api/locationImages/route.ts
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
 
       try {
         const response = await fetch(
-          `https://places.googleapis.com/v1/${location.image}/media?max_height_px=40`,
+          `https://places.googleapis.com/v1/${location.image}/media?max_height_px=60`,
           {
             headers: {
               'X-Goog-Api-Key': process.env.GOOGLE_API_KEY as string,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,32 +11,37 @@ interface Location {
   image: string | null;
   summarizedReview: string | null;
   rating: number | null;
+  type?: string;
 }
 
 interface LocationsBarProps {
   locations: Location[];
   onScroll?: (scrollLeft: number, scrollWidth: number, clientWidth: number) => void;
   loading?: boolean;
+  onLocationHover?: (locationId: string | null) => void;
+  selectedLocationId?: string | null;
 }
 
-const LocationsBar: React.FC<LocationsBarProps> = ({ locations, onScroll, loading }) => {
+const LocationsBar: React.FC<LocationsBarProps> = ({ 
+  locations, 
+  onScroll, 
+  loading,
+  onLocationHover,
+  selectedLocationId 
+}) => {
   const router = useRouter();
+
   useEffect(() => {
-
-    // Find the scrollable viewport
     const scrollViewport = document.querySelector('[data-radix-scroll-area-viewport]');
-
+    
     if (!scrollViewport || !onScroll) return;
 
     const handleScroll = () => {
-      
-      // Type assertion since we know this is a HTML element
       const viewport = scrollViewport as HTMLElement;
       const scrollLeft = viewport.scrollLeft;
       const scrollWidth = viewport.scrollWidth;
       const clientWidth = viewport.clientWidth;
 
-      // Check if we're near the end of horizontal scroll
       if (scrollWidth - (scrollLeft + clientWidth) < 100) {
         onScroll(scrollLeft, scrollWidth, clientWidth);
       }
@@ -44,11 +49,7 @@ const LocationsBar: React.FC<LocationsBarProps> = ({ locations, onScroll, loadin
 
     scrollViewport.addEventListener('scroll', handleScroll, { passive: true });
     
-    // Verify the event listener was added
-    console.log("Scroll listener added"); // Debug log
-
     return () => {
-      console.log("Cleaning up scroll listener"); // Debug log
       scrollViewport.removeEventListener('scroll', handleScroll);
     };
   }, [onScroll]);
@@ -62,7 +63,18 @@ const LocationsBar: React.FC<LocationsBarProps> = ({ locations, onScroll, loadin
       <ScrollArea className="w-full whitespace-nowrap">
         <div className="flex space-x-4 pb-4">
           {locations.map((location) => (
-            <Card key={location.id} className="w-80 flex-shrink-0 bg-white shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden">
+            <Card 
+              key={location.id} 
+              className={`
+                w-80 flex-shrink-0 bg-white transition-all duration-300 overflow-hidden
+                ${selectedLocationId === location.id 
+                  ? 'ring-2 ring-green-600 shadow-lg' 
+                  : 'shadow hover:shadow-xl'
+                }
+              `}
+              onMouseEnter={() => onLocationHover?.(location.id)}
+              onMouseLeave={() => onLocationHover?.(null)}
+            >
               <CardContent className="p-3">
                 <div className="flex">
                   <div className="w-1/3 mr-3">

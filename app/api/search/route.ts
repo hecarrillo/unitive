@@ -17,7 +17,6 @@ export async function GET(request: NextRequest) {
 
   try {
     const whereConditions = [];
-    const queryParams: any[] = [];
 
     if (!isNaN(latitude) && !isNaN(longitude)) {
       whereConditions.push(`earth_distance(ll_to_earth(${latitude}, ${longitude}), ll_to_earth(t.latitude, t.longitude)) / 1000 <= ${distance}`);
