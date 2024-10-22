@@ -186,14 +186,14 @@ const MapLayout: FC = () => {
       setCenter(userPos);
       
       // Initial load of locations around user
-      const initialDistance = 2; // 2km initial radius
-      setCurrentSearchArea({ center: userPos, distance: initialDistance }); // Add this line
+      const initialDistance = 5; // 2km initial radius
+      setCurrentSearchArea({ center: userPos, distance: initialDistance }); 
       await fetchLocationsInArea(userPos, initialDistance);
     } catch (error) {
       console.error('Error getting location:', error);
       // Fall back to default location and load data there
-      const initialDistance = 2;
-      setCurrentSearchArea({ center: defaultCenter, distance: initialDistance }); // Add this line
+      const initialDistance = 5;
+      setCurrentSearchArea({ center: defaultCenter, distance: initialDistance }); 
       await fetchLocationsInArea(defaultCenter, initialDistance);
     } finally {
       setIsLoadingLocation(false);
@@ -302,7 +302,7 @@ const MapLayout: FC = () => {
     ) / 1000; // Convert to km
   
     // If moved more than 30% of the visible radius or 1km (whichever is smaller)
-    const threshold = Math.min(visibleRadius * 0.3, 1);
+    const threshold = Math.min(visibleRadius * 0.2, 1);
     if (movedDistance > threshold) {
       setHasMovedMap(true);
     }
@@ -326,7 +326,7 @@ const MapLayout: FC = () => {
     const lngDistance = Math.abs(ne.lng() - sw.lng()) * 111.32 * 
       Math.cos(center.lat() * Math.PI / 180) / 2; // km
     
-    const radius = Math.max(latDistance, lngDistance);
+    const radius = Math.min(latDistance, lngDistance);
 
     await fetchLocationsInArea(
       { lat: center.lat(), lng: center.lng() },
@@ -358,7 +358,7 @@ const MapLayout: FC = () => {
   // Reset map when pathname or search params change
   useEffect(() => {
     if (mapInstance) {
-      mapInstance.setZoom(12);
+      mapInstance.setZoom(14);
       mapInstance.setCenter(userLocation ? new google.maps.LatLng(userLocation.lat, userLocation.lng) : defaultCenter);
       setSelectedPlace(null);
     }
