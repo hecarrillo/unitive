@@ -1,3 +1,5 @@
+// app/api/aspects/route.ts
+
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 

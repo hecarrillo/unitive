@@ -9,9 +9,17 @@ export async function GET(request: NextRequest) {
   const latitude = parseFloat(searchParams.get('latitude') ?? '');
   const longitude = parseFloat(searchParams.get('longitude') ?? '');
   const distance = parseFloat(searchParams.get('distance') ?? '10'); // km
-  const categoryId = parseInt(searchParams.get('categoryId') ?? '0');
-  const minAspectRating = parseInt(searchParams.get('minAspectRating') ?? '0');
-  const aspectId = parseInt(searchParams.get('aspectId') ?? '0');
+  
+  // Parse arrays from comma-separated strings
+  const categoryIds = searchParams.get('categoryIds')?.split(',')
+    .map(id => parseInt(id))
+    .filter(id => !isNaN(id)) ?? [];
+    
+  const aspectIds = searchParams.get('aspectIds')?.split(',')
+    .map(id => parseInt(id))
+    .filter(id => !isNaN(id)) ?? [];
+    
+  const minAspectRating = 5;
   const page = parseInt(searchParams.get('page') ?? '1');
   const perPage = parseInt(searchParams.get('perPage') ?? '20');
 
@@ -29,17 +37,22 @@ export async function GET(request: NextRequest) {
       conditions.push(`LOWER(t.name) LIKE LOWER('%${searchName}%')`);
     }
 
-    if (categoryId > 0) {
-      conditions.push(`t."categoryId" = ${categoryId}`);
+    if (categoryIds.length > 0) {
+      conditions.push(`t."categoryId" = ANY(ARRAY[${categoryIds.join(',')}])`);
     }
 
-    if (aspectId > 0 && minAspectRating > 0) {
+    if (aspectIds.length > 0) {
       conditions.push(`
-        EXISTS (
-          SELECT 1 FROM "LocationAspectRating" ar
-          WHERE ar."locationId" = t.id
-            AND ar."aspectId" = ${aspectId}
-            AND ar.rating >= ${minAspectRating}
+        NOT EXISTS (
+          SELECT 1 
+          FROM UNNEST(ARRAY[${aspectIds.join(',')}]) AS aid
+          WHERE NOT EXISTS (
+            SELECT 1 
+            FROM "LocationAspectRating" ar
+            WHERE ar."locationId" = t.id
+              AND ar."aspectId" = aid
+              AND ar.rating >= ${minAspectRating}
+          )
         )
       `);
     }
@@ -64,6 +77,20 @@ export async function GET(request: NextRequest) {
       ? Prisma.raw(`, earth_distance(ll_to_earth(${latitude}, ${longitude}), ll_to_earth(t.latitude, t.longitude)) / 1000 AS distance`)
       : Prisma.raw(``);
 
+    // Only include matched_aspects in the SELECT if we have aspectIds
+    const aspectSelect = aspectIds.length > 0 
+      ? Prisma.raw(`, 
+          (
+            SELECT json_agg(json_build_object(
+              'aspectId', ar."aspectId",
+              'rating', ar.rating
+            ))
+            FROM "LocationAspectRating" ar
+            WHERE ar."locationId" = t.id
+            AND ar."aspectId" = ANY(ARRAY[${aspectIds.join(',')}])
+          ) as matched_aspects`)
+      : Prisma.raw(``);
+
     const orderBy = !isNaN(latitude) && !isNaN(longitude)
       ? 'ORDER BY distance'
       : 'ORDER BY rating DESC NULLS LAST';
@@ -74,6 +101,7 @@ export async function GET(request: NextRequest) {
           t.*,
           (SELECT COUNT(*)::integer FROM "SiteReview" sr WHERE sr."locationId" = t.id) as review_count
           ${distanceSelect}
+          ${aspectSelect}
         FROM "TouristicLocation" t
         ${Prisma.raw(whereClause)}
         ${Prisma.raw(orderBy)}
