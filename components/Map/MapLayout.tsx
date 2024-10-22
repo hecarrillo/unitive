@@ -9,6 +9,7 @@ import LocationDetailModal from './LocationDetailModal';
 import Loading from '../utils/Loading';
 import LocationsBar from './LocationsBar';
 import SearchHeader from './SearchHeader';
+import { PersonStanding } from 'lucide-react';
 
 interface LatLng {
   lat: number;
@@ -87,6 +88,13 @@ const MapLayout: FC = () => {
     aspectIds: number[];
     radius: number | null;
   } | null>(null);
+
+  const handleReturnToMyLocation = useCallback(() => {
+    if (!mapInstance || !userLocation) return;
+    
+    mapInstance.panTo(userLocation);
+    mapInstance.setZoom(14); // or whatever your preferred default zoom is
+  }, [mapInstance, userLocation]);  
 
   const handleFiltersChange = useCallback(async (filters: {
     searchTerm: string;
@@ -559,6 +567,20 @@ const MapLayout: FC = () => {
         </div>
       </div>
 
+      {!isModalOpen && (
+        <div className="fixed top-4 right-3 z-[60]">
+          <Button
+            className="bg-white hover:bg-gray-100 text-black border shadow-lg rounded-full w-12 h-12 p-0 flex items-center justify-center"
+            onClick={handleReturnToMyLocation}
+            disabled={!userLocation}
+            title="Return to my location"
+          >
+            <PersonStanding 
+              className={`w-6 h-6 ${userLocation ? 'text-green-600' : 'text-gray-400'}`}
+            />
+          </Button>
+        </div>
+      )}
   
       {/* Bottom Locations Bar - Adjusts width based on modal state and screen size */}
       {initialDataLoaded && locations.length > 0 && !isModalOpen && (
