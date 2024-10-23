@@ -41,13 +41,23 @@ const defaultCenter: LatLng = {
   lng: -99.1332,
 };
 
+// const getMarkerIcon = (isHovered: boolean, isSelected: boolean) => ({
+//   path: google.maps.SymbolPath.CIRCLE,
+//   fillColor: isHovered ? '#ef4444' : '#00e600',
+//   fillOpacity: 1,
+//   strokeWeight: isHovered ? 3 : 1,
+//   strokeColor: isHovered ? '#ef4444' : '#000000',
+//   scale: isHovered ? 10 : (isSelected ? 9 : 7),
+// });
+
 const getMarkerIcon = (isHovered: boolean, isSelected: boolean) => ({
-  path: google.maps.SymbolPath.CIRCLE,
-  fillColor: isHovered ? '#ef4444' : '#00e600',
+  path: "M 12,2 C 8.1340068,2 5,5.1340068 5,9 c 0,5.25 7,13 7,13 0,0 7,-7.75 7,-13 0,-3.8659932 -3.134007,-7 -7,-7 z", // Pin SVG path
+  fillColor: isHovered ? '#ef4444' : '#00a600', 
   fillOpacity: 1,
-  strokeWeight: isHovered ? 3 : 1,
-  strokeColor: isHovered ? '#ef4444' : '#000000',
-  scale: isHovered ? 10 : (isSelected ? 9 : 7),
+  strokeWeight: 2,
+  strokeColor: isHovered ? '#dc2626' : '#274E13', // darker shade for stroke
+  scale: isHovered ? 2 : (isSelected ? 1.8 : 1.5),
+  anchor: new google.maps.Point(12, 23), // Centers the pin and keeps it properly positioned
 });
   
 const MapLayout: FC = () => {
