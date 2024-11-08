@@ -8,15 +8,20 @@ interface Session {
 interface UseRegisterUserReturn {
     isRegistering: boolean;
     error: string | null;
+    isRegistered: boolean;
 }
 
 export const useRegisterUser = (session: Session | null): UseRegisterUserReturn => {
     const [isRegistering, setIsRegistering] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
+    const [isRegistered, setIsRegistered] = useState<boolean>(false);
 
     useEffect(() => {
         const registerUser = async () => {
-            if (!session?.user) return;
+            // Skip if no session, already registering, or already registered
+            if (!session?.user || isRegistering || isRegistered) {
+                return;
+            }
             
             try {
                 setIsRegistering(true);
@@ -35,8 +40,8 @@ export const useRegisterUser = (session: Session | null): UseRegisterUserReturn 
                 }
 
                 // Registration successful
-                const data = await response.json();
-                // You can handle the successful registration here if needed
+                await response.json();
+                setIsRegistered(true);
             } catch (err) {
                 setError(err instanceof Error ? err.message : 'An error occurred during registration');
                 console.error('Registration error:', err);
@@ -46,7 +51,7 @@ export const useRegisterUser = (session: Session | null): UseRegisterUserReturn 
         };
 
         registerUser();
-    }, [session]);
+    }, [session, isRegistering, isRegistered]);
 
-    return { isRegistering, error };
+    return { isRegistering, error, isRegistered };
 };
