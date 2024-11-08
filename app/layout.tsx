@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import SupabaseProvider from './supabase-provider'
 import NavBar from '../components/NavBar/NavBar'
 import Register from '@/components/supaauth/register';
+import { ToastStateProvider, Toaster } from "@/components/ui/toast"
 import "./globals.css";
 
 const geistSans = localFont({
@@ -34,7 +35,10 @@ export default function RootLayout({
         <SupabaseProvider>
           <Register/>
           <NavBar/>
+          <ToastStateProvider>
             {children}
+            <Toaster />
+          </ToastStateProvider>
         </SupabaseProvider>
       </body>
     </html>

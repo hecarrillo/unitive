@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import prisma from '@/lib/prisma'
 import { reviewSchema } from '@/lib/validations/review'
 import { appCache } from '@/lib/cache'
+import { ReviewSource, Prisma } from '@prisma/client'
 
 export async function POST(req: Request) {
   try {
@@ -48,62 +49,81 @@ export async function POST(req: Request) {
       where: {
         locationId,
         userId: user.id,
+        source: ReviewSource.USR
       }
     })
 
-    if (existingReview) {
-      return NextResponse.json(
-        { error: 'You have already reviewed this location' },
-        { status: 409 }
-      )
-    }
-
-    // Create review and update location rating in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Create the review
-      const newReview = await tx.siteReview.create({
-        data: {
-          locationId,
-          body: reviewBody,
-          rating,
-          userId: user.id,
-          source: 'USR',
-          extractedDate: new Date(),
-        }
-      })
+      let review;
+
+      if (existingReview) {
+        // Update existing review
+        review = await tx.siteReview.update({
+          where: { id: existingReview.id },
+          data: {
+            body: reviewBody,
+            rating,
+            extractedDate: new Date()
+          }
+        });
+      } else {
+        // Create new review
+        review = await tx.siteReview.create({
+          data: {
+            locationId,
+            body: reviewBody,
+            rating,
+            userId: user.id,
+            source: ReviewSource.USR,
+            extractedDate: new Date()
+          }
+        });
+      }
 
       // Calculate new average rating
-      const reviews = await tx.siteReview.findMany({
+      const allReviews = await tx.siteReview.findMany({
         where: { locationId },
         select: { rating: true }
-      })
+      });
 
-      const averageRating = reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length
+      const averageRating = allReviews.reduce((acc, review) => acc + review.rating, 0) / allReviews.length;
 
       // Update location rating
       await tx.touristicLocation.update({
         where: { id: locationId },
         data: { rating: averageRating }
-      })
+      });
 
-      return newReview
-    })
+      return review;
+    });
 
-    // Invalidate any cached data for this location
-    appCache.deletePattern(`location:${locationId}`)
+    // Invalidate cache
+    appCache.deletePattern(`location:${locationId}`);
 
-    return NextResponse.json(result, { status: 201 })
+    return NextResponse.json(result, { 
+      status: existingReview ? 200 : 201 
+    });
 
   } catch (error) {
-    console.error('Error creating review:', error)
+    console.error('Error handling request:', error);
+    
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2002') {
+        console.error('Sequence error detected, you may need to reset the sequence');
+        return NextResponse.json(
+          { error: 'Conflict while creating review. Please try again.' },
+          { status: 409 }
+        );
+      }
+    }
+    
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
-    )
+    );
   }
 }
 
-// GET endpoint to fetch user's review for a specific location
 export async function GET(req: Request) {
   try {
     const supabase = createRouteHandlerClient({ cookies })
@@ -130,6 +150,7 @@ export async function GET(req: Request) {
       where: {
         locationId,
         userId: user.id,
+        source: ReviewSource.USR
       }
     })
 
@@ -140,6 +161,6 @@ export async function GET(req: Request) {
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
-    )
+    );
   }
 }

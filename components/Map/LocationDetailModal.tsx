@@ -1,19 +1,24 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// components/Map/LocationDetailModal.tsx
 import React from 'react';
 import Image from 'next/image';
 import { X, Star } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useFavorites } from '@/hooks/useFavorites';
-import { Aspect } from '@prisma/client';
+import ReviewSection from './ReviewSection';
+import { useSupabase } from '@/app/supabase-provider';
 
 interface LocationData {
   id: string;
   name: string;
   image: string | null;
   summarizedReview: string | null;
-  aspectRatings: { name: string; rating: number }[];
-  siteReviews: { id: string; rating: number; body: string; extractedDate: string }[];
+  aspectRatings: { aspect: { name: string }; rating: number }[];
+  siteReviews: { 
+    id: string;
+    rating: number; 
+    body: string; 
+    extractedDate: string;
+    userId: string | null;
+  }[];
 }
 
 interface LocationDetailModalProps {
@@ -30,28 +35,50 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [locationData, setLocationData] = React.useState<LocationData>();
+  const [userReview, setUserReview] = React.useState<{
+    id: string;
+    rating: number;
+    body: string;
+  } | null>(null);
+  
   const { favoriteLocations, toggleFavorite } = useFavorites();
   const [optimisticFavorites, setOptimisticFavorites] = React.useState<Set<string>>(new Set());
+  const { supabase } = useSupabase();
+
+  const fetchLocationDetails = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/location/${locationId}`);
+      if (!response.ok) throw new Error('Failed to fetch location details');
+      const data = await response.json();
+      setLocationData(data);
+
+      // Find user review
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const userReview: { id: string; rating: number; body: string } | undefined = data.siteReviews.find((review: { userId: string | null }) => review.userId === user.id);
+        if (userReview) {
+          setUserReview({
+            id: userReview.id,
+            rating: userReview.rating,
+            body: userReview.body
+          });
+        } else {
+          setUserReview(null);
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   React.useEffect(() => {
     setOptimisticFavorites(new Set(favoriteLocations));
   }, [favoriteLocations]);
 
   React.useEffect(() => {
-    const fetchLocationDetails = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/location/${locationId}`);
-        if (!response.ok) throw new Error('Failed to fetch location details');
-        const data = await response.json();
-        setLocationData(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (isOpen && locationId) {
       fetchLocationDetails();
     }
@@ -71,6 +98,10 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
     });
 
     await toggleFavorite(locationId);
+  };
+
+  const handleReviewSubmitted = () => {
+    fetchLocationDetails();
   };
 
   const renderRatingStars = (rating: number) => {
@@ -150,12 +181,19 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
                 </p>
               </div>
 
+              {/* Review Section */}
+              <ReviewSection 
+                locationId={locationId}
+                onReviewSubmitted={handleReviewSubmitted}
+                userReview={userReview}
+              />
+
               {/* Aspect ratings */}
               {locationData.aspectRatings?.length > 0 && (
                 <div>
                   <h3 className="text-xl font-semibold mb-4">Ratings by Aspect</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {locationData.aspectRatings.map((aspect: any) => (
+                    {locationData.aspectRatings.map((aspect) => (
                       <div
                         key={aspect.aspect.name}
                         className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
@@ -173,12 +211,7 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
                 <div>
                   <h3 className="text-xl font-semibold mb-4">Recent Reviews</h3>
                   <div className="space-y-4">
-                    {locationData.siteReviews.map((review: {
-                      id: string;
-                      rating: number;
-                      body: string;
-                      extractedDate: string;
-                    }) => (
+                    {locationData.siteReviews.map((review) => (
                       <div
                         key={review.id}
                         className="bg-white border rounded-lg p-4 shadow-sm"

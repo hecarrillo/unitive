@@ -36,7 +36,7 @@ model TouristicLocation {
 }
 
 model SiteReview {
-  id            Int               @id @default(autoincrement())
+  id            String            @id @default(uuid())
   locationId    String
   body          String
   rating        Float
