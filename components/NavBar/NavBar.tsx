@@ -3,53 +3,30 @@
 import { FC, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Home, Info, Settings, Search, LogOut } from 'lucide-react';
+import { X, Home, User, Heart, Map, LogOut } from 'lucide-react';
 import { useSupabase } from '@/app/supabase-provider';
-import SearchBar from './SearchBar';
 
-let navItems = [
+const navItems = [
     { name: 'Home', path: '/', icon: Home },
-    { name: 'About', path: '/about', icon: Info },
-    { name: 'Settings', path: '/settings', icon: Settings },
+    { name: 'Favorites', path: '/favorites', icon: Heart },
+    { name: 'Touristic Route', path: '/routes', icon: Map },
 ];
 
 const NavBar: FC = () => {
     const { signOut, session } = useSupabase();
     const [isNavOpen, setIsNavOpen] = useState(false);
-    const [searchBarKey, setSearchBarKey] = useState(0); // Add key for SearchBar reset
     const pathname = usePathname();
 
     const toggleNav = () => {
-        if (isNavOpen) {
-            // Increment the key when closing the nav to force SearchBar remount
-            setSearchBarKey(prev => prev + 1);
-        }
         setIsNavOpen(!isNavOpen);
     };
 
     useEffect(() => {
-        // Close the navbar and reset SearchBar when the route changes
         setIsNavOpen(false);
-        setSearchBarKey(prev => prev + 1);
     }, [pathname]);
 
     async function handleLogout() {
         await signOut();
-    }
-    
-    if(session){
-        navItems = [
-            { name: 'Home', path: '/', icon: Home },
-            //{ name: 'About', path: '/about', icon: Info },
-            //{ name: 'Settings', path: '/settings', icon: Settings },
-            { name: 'Log Out', path: '/logout', icon: LogOut, onClick: handleLogout }
-        ];
-    } else {
-        navItems = [
-            { name: 'Home', path: '/', icon: Home },
-            //{ name: 'About', path: '/about', icon: Info },
-            //{ name: 'Settings', path: '/settings', icon: Settings },
-        ];
     }
 
     if (!session) {
@@ -58,14 +35,14 @@ const NavBar: FC = () => {
     
     return (
         <>
-            {/* Navigation toggle button */}
+            {/* User icon toggle button */}
             <button
                 onClick={toggleNav}
                 className={`fixed top-20 left-4 z-50 p-2 bg-white rounded-full shadow-lg transition-transform duration-300 ease-in-out ${
                     isNavOpen ? 'translate-x-64' : 'translate-x-0'
                 }`}
             >
-                {isNavOpen ? <X size={24} /> : <Menu size={24} />}
+                {isNavOpen ? <X size={24} /> : <User size={24} />}
             </button>
 
             {/* Overlay */}
@@ -82,36 +59,51 @@ const NavBar: FC = () => {
                     isNavOpen ? 'translate-x-0' : '-translate-x-full'
                 }`}
             >
-                <div className="p-4 space-y-4 top-10">
+                {/* User Profile Section */}
+                <div className="p-4 border-b">
+                    <div className="flex items-center justify-center mb-4">
+                        {/* Placeholder for user avatar - replace src with actual user avatar */}
+                        <img 
+                            src="/api/placeholder/48/48"
+                            alt="User avatar" 
+                            className="w-16 h-16 rounded-full"
+                        />
+                    </div>
+                    <p className="text-center text-gray-600">
+                        {session?.user?.email}
+                    </p>
+                </div>
+
+                {/* User Actions Label */}
+                <div className="p-4 border-b">
+                    <h3 className="text-sm font-semibold text-gray-500 uppercase">User Actions</h3>
+                </div>
+
+                {/* Navigation Items */}
+                <div className="p-4 space-y-2">
                     {navItems.map((item) => (
-                        item.onClick ? (
-                            <button
-                                key={item.name}
-                                onClick={item.onClick}
-                                className={`flex items-center space-x-2 p-2 rounded-lg w-full text-left ${
-                                    pathname === item.path
-                                        ? 'bg-green-100 text-black-600'
-                                        : 'hover:bg-gray-100'
-                                }`}
-                            >
-                                <item.icon size={20} />
-                                <span>{item.name}</span>
-                            </button>
-                        ) : (
-                            <Link
-                                key={item.path}
-                                href={item.path}
-                                className={`flex items-center space-x-2 p-2 rounded-lg ${
-                                    pathname === item.path
-                                        ? 'bg-green-100 text-black-600'
-                                        : 'hover:bg-gray-100'
-                                }`}
-                            >
-                                <item.icon size={20} />
-                                <span>{item.name}</span>
-                            </Link>
-                        )
+                        <Link
+                            key={item.path}
+                            href={item.path}
+                            className={`flex items-center space-x-2 p-2 rounded-lg ${
+                                pathname === item.path
+                                    ? 'bg-green-100 text-black-600'
+                                    : 'hover:bg-gray-100'
+                            }`}
+                        >
+                            <item.icon size={20} />
+                            <span>{item.name}</span>
+                        </Link>
                     ))}
+                    
+                    {/* Logout Button */}
+                    <button
+                        onClick={handleLogout}
+                        className="flex items-center space-x-2 p-2 rounded-lg w-full text-left hover:bg-gray-100"
+                    >
+                        <LogOut size={20} />
+                        <span>Log Out</span>
+                    </button>
                 </div>
             </nav>
         </>
