@@ -1,12 +1,15 @@
 "use client";
 import React from "react";
-import SignUp from "./signup";
 import Social from "./social";
 import Image from "next/image";
 import { useSupabase } from "@/app/supabase-provider";
+import { useRegisterUser } from "@/hooks/useRegisterUser";
+import { useRouter } from "next/navigation";
 
 export default function Register() {
   const { session } = useSupabase();
+  const router = useRouter();
+  const { isRegistering, error } = useRegisterUser(session);
   
   // session will be undefined during loading, and null when there's no session
   const isLoading = typeof session === 'undefined';
@@ -15,9 +18,34 @@ export default function Register() {
   const urlParams = new URLSearchParams(queryString);
   const next = urlParams.get("next");
 
+  // If we have a session and registration is complete, redirect
+  React.useEffect(() => {
+    if (session && !isRegistering && !error) {
+      router.push(next || "/");
+    }
+  }, [session, isRegistering, error, router, next]);
+
+  if (isLoading || isRegistering) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center">
+        <div className="bg-red-50 text-red-500 p-4 rounded-md">
+          An error occurred: {error}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
-      {session || isLoading ? null : 
+      {session ? null : 
         <>
           <div className="fixed inset-0 bg-black bg-opacity-50 z-40"></div>
           <div className="fixed inset-0 flex items-center justify-center z-50">

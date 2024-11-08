@@ -42,7 +42,7 @@ model SiteReview {
   rating        Float
   extractedDate DateTime
   source        ReviewSource
-  userId        Int?
+  userId        String?
   location      TouristicLocation @relation(fields: [locationId], references: [id])
   user          User?             @relation(fields: [userId], references: [id])
 
@@ -80,7 +80,7 @@ model LocationCategory {
 }
 
 model User {
-  id                Int                    @id @default(autoincrement())
+  id                String                 @id @default(cuid())
   email             String                 @unique
   avatarUrl         String?
   favoriteLocations FavoriteUserLocation[]
@@ -90,7 +90,7 @@ model User {
 
 model FavoriteUserLocation {
   id         Int               @id @default(autoincrement())
-  userId     Int
+  userId     String
   locationId String
   user       User              @relation(fields: [userId], references: [id])
   location   TouristicLocation @relation(fields: [locationId], references: [id])
@@ -102,7 +102,7 @@ model FavoriteUserLocation {
 
 model UserRouteLocation {
   id         Int               @id @default(autoincrement())
-  userId     Int
+  userId     String
   locationId String
   user       User              @relation(fields: [userId], references: [id])
   location   TouristicLocation @relation(fields: [locationId], references: [id])
