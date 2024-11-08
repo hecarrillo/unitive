@@ -1,8 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+// components/Map/LocationDetailModal.tsx
 import React from 'react';
 import Image from 'next/image';
 import { X, Star } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useFavorites } from '@/hooks/useFavorites';
+import { Aspect } from '@prisma/client';
+
+interface LocationData {
+  id: string;
+  name: string;
+  image: string | null;
+  summarizedReview: string | null;
+  aspectRatings: { name: string; rating: number }[];
+  siteReviews: { id: string; rating: number; body: string; extractedDate: string }[];
+}
 
 interface LocationDetailModalProps {
   isOpen: boolean;
@@ -17,7 +29,13 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
 }) => {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-  const [locationData, setLocationData] = React.useState<any>(null);
+  const [locationData, setLocationData] = React.useState<LocationData>();
+  const { favoriteLocations, toggleFavorite } = useFavorites();
+  const [optimisticFavorites, setOptimisticFavorites] = React.useState<Set<string>>(new Set());
+
+  React.useEffect(() => {
+    setOptimisticFavorites(new Set(favoriteLocations));
+  }, [favoriteLocations]);
 
   React.useEffect(() => {
     const fetchLocationDetails = async () => {
@@ -39,7 +57,23 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
     }
   }, [isOpen, locationId]);
 
-  const renderStars = (rating: number) => {
+  const handleFavoriteClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    setOptimisticFavorites(prev => {
+      const next = new Set(prev);
+      if (next.has(locationId)) {
+        next.delete(locationId);
+      } else {
+        next.add(locationId);
+      }
+      return next;
+    });
+
+    await toggleFavorite(locationId);
+  };
+
+  const renderRatingStars = (rating: number) => {
     return Array.from({ length: 5 }).map((_, index) => (
       <Star
         key={index}
@@ -56,13 +90,27 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
 
   return (
     <div className="h-full flex flex-col">
-      {/* Close button - Always visible */}
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 z-50 p-2 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
-      >
-        <X className="w-5 h-5 text-white" />
-      </button>
+      {/* Header Controls - Always visible */}
+      <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+        <button
+          onClick={handleFavoriteClick}
+          className="p-2 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
+        >
+          <Star 
+            className={`w-5 h-5 ${
+              optimisticFavorites.has(locationId)
+                ? 'fill-yellow-400 stroke-yellow-400'
+                : 'stroke-white'
+            }`}
+          />
+        </button>
+        <button
+          onClick={onClose}
+          className="p-2 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
+        >
+          <X className="w-5 h-5 text-white" />
+        </button>
+      </div>
 
       {loading ? (
         <div className="flex-1 flex items-center justify-center">
@@ -113,7 +161,7 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
                         className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
                       >
                         <span className="font-medium">{aspect.aspect.name}</span>
-                        <div className="flex">{renderStars(aspect.rating)}</div>
+                        <div className="flex">{renderRatingStars(aspect.rating)}</div>
                       </div>
                     ))}
                   </div>
@@ -125,26 +173,18 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
                 <div>
                   <h3 className="text-xl font-semibold mb-4">Recent Reviews</h3>
                   <div className="space-y-4">
-                    {locationData.siteReviews.map((review: any) => (
+                    {locationData.siteReviews.map((review: {
+                      id: string;
+                      rating: number;
+                      body: string;
+                      extractedDate: string;
+                    }) => (
                       <div
                         key={review.id}
                         className="bg-white border rounded-lg p-4 shadow-sm"
                       >
                         <div className="flex items-center justify-between mb-2">
-                          {/* <div className="flex items-center gap-2">
-                            {review.user?.avatarUrl ? (
-                              <Image
-                                src={review.user.avatarUrl}
-                                alt="User avatar"
-                                width={32}
-                                height={32}
-                                className="rounded-full"
-                              />
-                            ) : (
-                              <div className="w-8 h-8 bg-gray-200 rounded-full" />
-                            )}
-                            <div className="flex">{renderStars(review.rating)}</div>
-                          </div> */}
+                          <div className="flex">{renderRatingStars(review.rating)}</div>
                           <div className="text-sm text-gray-500">
                             {new Date(review.extractedDate).toLocaleDateString()}
                           </div>

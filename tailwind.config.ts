@@ -12,6 +12,15 @@ const config: Config = {
         background: "var(--background)",
         foreground: "var(--foreground)",
       },
+      keyframes: {
+        marquee: {
+          '0%': { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(calc(-100% - 40px))' }, // 40px buffer
+        }
+      },
+      animation: {
+        marquee: 'marquee var(--marquee-duration) linear infinite alternate',
+      },
     },
   },
   plugins: [],
