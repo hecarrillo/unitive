@@ -7,11 +7,12 @@ import { X, Home, User, Heart, Map, LogOut } from 'lucide-react';
 import { useSupabase } from '@/app/supabase-provider';
 
 const LOAD_FAVORITES_EVENT = 'LOAD_FAVORITES_MAP';
+const LOAD_ROUTES_EVENT = 'LOAD_ROUTES_EVENT';
 
 const navItems = [
     { name: 'Home', path: '/', icon: Home },
     { name: 'Favorites', path: '/', icon: Heart }, // Changed path to '/' since we'll handle it differently
-    { name: 'Touristic Route', path: '/routes', icon: Map },
+    { name: 'Touristic Route', path: '/', icon: Map },
 ];
 
 const NavBar: FC = () => {
@@ -27,6 +28,12 @@ const NavBar: FC = () => {
         if (name === 'Favorites') {
             // Dispatch custom event instead of navigation
             const event = new CustomEvent(LOAD_FAVORITES_EVENT);
+            window.dispatchEvent(event);
+            setIsNavOpen(false); // Close the nav after clicking
+        }
+        if (name === 'Touristic Route') {
+            // Dispatch custom event instead of navigation
+            const event = new CustomEvent(LOAD_ROUTES_EVENT);
             window.dispatchEvent(event);
             setIsNavOpen(false); // Close the nav after clicking
         }
@@ -92,7 +99,7 @@ const NavBar: FC = () => {
                 {/* Navigation Items */}
                 <div className="p-4 space-y-2">
                     {navItems.map((item) => (
-                        item.name === 'Favorites' ? (
+                        item.name === 'Favorites' || item.name === 'Touristic Route'? (
                             <button
                                 key={item.path}
                                 onClick={() => handleNavItemClick(item.path, item.name)}

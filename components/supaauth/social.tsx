@@ -17,6 +17,8 @@ export default function Social({ redirectTo }: { redirectTo: string }) {
       options: {
         redirectTo:
           `${origin}`,
+        scopes:
+          'https://www.googleapis.com/auth/userinfo.profile',
       },
     });
   };

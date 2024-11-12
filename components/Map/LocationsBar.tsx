@@ -2,8 +2,10 @@ import React from 'react';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Star } from 'lucide-react';
+import { Star, Route } from 'lucide-react';
 import { useFavorites } from '@/hooks/useFavorites';
+import { useRouteLocations } from '@/hooks/useRouteLocations';
+import { useToast } from '@/components/ui/toast';
 
 interface Location {
   id: string;
@@ -32,6 +34,7 @@ const MarqueeText: React.FC<{ text: string; isCardHovered: boolean }> = ({ text,
   const textRef = React.useRef<HTMLDivElement>(null);
   const [isOverflowing, setIsOverflowing] = React.useState(false);
   const isMobile = React.useMemo(() => window.innerWidth <= 768, []); // Mobile breakpoint
+  //const { routeLocations, toggleRouteLocation, isLoading: routesLoading, refreshRoute } = useRouteLocations();
 
   React.useEffect(() => {
     if (containerRef.current && textRef.current) {
@@ -75,11 +78,17 @@ const LocationsBar: React.FC<LocationsBarProps> = ({
 }) => {
   const { favoriteLocations, toggleFavorite, isLoading: favoritesLoading } = useFavorites();
   const [optimisticFavorites, setOptimisticFavorites] = React.useState<Set<string>>(new Set());
+  const { routeLocations, toggleRouteLocation, isLoading: routesLoading, refreshRoute } = useRouteLocations();
   const [hoveredCardId, setHoveredCardId] = React.useState<string | null>(null);
+  const [optimisticRoutes, setOptimisticRoutes] = React.useState<Set<string>>(new Set());
+  const { toast } = useToast();
 
   React.useEffect(() => {
     setOptimisticFavorites(new Set(favoriteLocations));
   }, [favoriteLocations]);
+  React.useEffect(() => {
+    setOptimisticRoutes(new Set(routeLocations));
+  }, [routeLocations]);
 
   const handleFavoriteClick = async (e: React.MouseEvent, locationId: string) => {
     e.stopPropagation();
@@ -95,6 +104,49 @@ const LocationsBar: React.FC<LocationsBarProps> = ({
     });
 
     await toggleFavorite(locationId);
+  };
+
+  const handleRouteClick = async (e: React.MouseEvent, locationId: string) => {
+    e.stopPropagation();
+    
+    if (routesLoading) {
+      return;
+    }
+
+    try {
+      // Update optimistic state first
+      const isAdding = !optimisticRoutes.has(locationId);
+      setOptimisticRoutes(prev => {
+        const next = new Set(prev);
+        if (next.has(locationId)) {
+          next.delete(locationId);
+        } else {
+          next.add(locationId);
+        }
+        return next;
+      });
+
+      await toggleRouteLocation(locationId);
+      const location = locations.find(loc => loc.id === locationId);
+      
+      toast({
+        title: isAdding ? "Added to route" : "Removed from route",
+        description: location?.name,
+        duration: 2000,
+      });
+
+      // Ensure route data is fresh
+      await refreshRoute();
+    } catch (error) {
+      // Revert optimistic update on error
+      setOptimisticRoutes(new Set(routeLocations));
+      toast({
+        title: "Error updating route",
+        description: "Please try again",
+        variant: "destructive",
+        duration: 2000,
+      });
+    }
   };
 
   const handleCardHover = (locationId: string | null) => {
@@ -133,6 +185,21 @@ const LocationsBar: React.FC<LocationsBarProps> = ({
                   }`}
                 />
               </button>
+              <div className="absolute top-11 right-2 z-10">
+                <button 
+                  onClick={(e) => handleRouteClick(e, location.id)}
+                  className="p-1 hover:bg-gray-100 rounded-full transition-colors bg-white/80 backdrop-blur-sm"
+                  //disabled={routesLoading}
+                >
+                  <Route 
+                    className={`w-5 h-5 ${
+                      optimisticRoutes.has(location.id)
+                        ? 'fill-blue-400 stroke-blue-400'
+                        : 'stroke-gray-400'
+                    } ${routesLoading ? 'opacity-50' : ''}`}
+                  />
+                </button>
+              </div>
               <CardContent className="p-3">
                 <div className="flex">
                   <div className="w-24 flex-shrink-0 mr-3">
