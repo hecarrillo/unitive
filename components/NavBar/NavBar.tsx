@@ -6,9 +6,11 @@ import { usePathname } from 'next/navigation';
 import { X, Home, User, Heart, Map, LogOut } from 'lucide-react';
 import { useSupabase } from '@/app/supabase-provider';
 
+const LOAD_FAVORITES_EVENT = 'LOAD_FAVORITES_MAP';
+
 const navItems = [
     { name: 'Home', path: '/', icon: Home },
-    { name: 'Favorites', path: '/favorites', icon: Heart },
+    { name: 'Favorites', path: '/', icon: Heart }, // Changed path to '/' since we'll handle it differently
     { name: 'Touristic Route', path: '/routes', icon: Map },
 ];
 
@@ -19,6 +21,15 @@ const NavBar: FC = () => {
 
     const toggleNav = () => {
         setIsNavOpen(!isNavOpen);
+    };
+
+    const handleNavItemClick = (path: string, name: string) => {
+        if (name === 'Favorites') {
+            // Dispatch custom event instead of navigation
+            const event = new CustomEvent(LOAD_FAVORITES_EVENT);
+            window.dispatchEvent(event);
+            setIsNavOpen(false); // Close the nav after clicking
+        }
     };
 
     useEffect(() => {
@@ -62,7 +73,6 @@ const NavBar: FC = () => {
                 {/* User Profile Section */}
                 <div className="p-4 border-b">
                     <div className="flex items-center justify-center mb-4">
-                        {/* Placeholder for user avatar - replace src with actual user avatar */}
                         <img 
                             src="/api/placeholder/48/48"
                             alt="User avatar" 
@@ -82,18 +92,29 @@ const NavBar: FC = () => {
                 {/* Navigation Items */}
                 <div className="p-4 space-y-2">
                     {navItems.map((item) => (
-                        <Link
-                            key={item.path}
-                            href={item.path}
-                            className={`flex items-center space-x-2 p-2 rounded-lg ${
-                                pathname === item.path
-                                    ? 'bg-green-100 text-black-600'
-                                    : 'hover:bg-gray-100'
-                            }`}
-                        >
-                            <item.icon size={20} />
-                            <span>{item.name}</span>
-                        </Link>
+                        item.name === 'Favorites' ? (
+                            <button
+                                key={item.path}
+                                onClick={() => handleNavItemClick(item.path, item.name)}
+                                className={`flex items-center space-x-2 p-2 rounded-lg w-full text-left hover:bg-gray-100`}
+                            >
+                                <item.icon size={20} />
+                                <span>{item.name}</span>
+                            </button>
+                        ) : (
+                            <Link
+                                key={item.path}
+                                href={item.path}
+                                className={`flex items-center space-x-2 p-2 rounded-lg ${
+                                    pathname === item.path
+                                        ? 'bg-green-100 text-black-600'
+                                        : 'hover:bg-gray-100'
+                                }`}
+                            >
+                                <item.icon size={20} />
+                                <span>{item.name}</span>
+                            </Link>
+                        )
                     ))}
                     
                     {/* Logout Button */}

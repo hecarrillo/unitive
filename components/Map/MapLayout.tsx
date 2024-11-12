@@ -60,6 +60,8 @@ const getMarkerIcon = (isHovered: boolean, isSelected: boolean) => ({
   anchor: new google.maps.Point(12, 23), // Centers the pin and keeps it properly positioned
 });
   
+const LOAD_FAVORITES_EVENT = 'LOAD_FAVORITES_MAP';
+
 const MapLayout: FC = () => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -98,6 +100,87 @@ const MapLayout: FC = () => {
     aspectIds: number[];
     radius: number | null;
   } | null>(null);
+
+  const loadFavoriteLocations = async () => {
+    try {
+      setIsLoadingNewArea(true);
+      setLoading(true);
+  
+      // Fetch favorite location IDs
+      const favResponse = await fetch('/api/favorites');
+      const favData = await favResponse.json();
+      const favoriteIds = favData.map((fav: { locationId: string }) => fav.locationId);
+  
+      if (favoriteIds.length === 0) {
+        setLocations([]);
+        setHasMore(false);
+        return;
+      }
+  
+      // Fetch full location details for favorites using individual API calls
+      const locationData = await Promise.all(
+        favoriteIds.map(async (locationId) => {
+          const locResponse = await fetch(`/api/location/${locationId}`);
+          if (!locResponse.ok) throw new Error(`Failed to fetch location ${locationId}`);
+          return await locResponse.json();
+        })
+      );
+  
+      // Process locations and fetch images
+      const locationIds = locationData
+        .filter((location: Location) => location.image)
+        .map((location: Location) => location.id);
+  
+      let processedLocations = locationData;
+  
+      if (locationIds.length > 0) {
+        const imageResponse = await fetch('/api/locationImages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ locationIds }),
+        });
+  
+        if (imageResponse.ok) {
+          const images = await imageResponse.json();
+          processedLocations = processedLocations.map((location: Location) => ({
+            ...location,
+            image: images[location.id] || null
+          }));
+        }
+      }
+  
+      setLocations(processedLocations);
+      setHasMore(false); // Since we're loading all favorites at once
+  
+      // If there are locations, center the map on the first one
+      if (processedLocations.length > 0) {
+        const bounds = new google.maps.LatLngBounds();
+        processedLocations.forEach((location: Location) => {
+          bounds.extend({ lat: location.latitude, lng: location.longitude });
+        });
+        
+        if (mapInstance) {
+          mapInstance.fitBounds(bounds);
+          // Adjust zoom if there's only one location
+          if (processedLocations.length === 1) {
+            mapInstance.setZoom(14);
+          }
+        }
+      }
+  
+      // Clear any active filters or search areas
+      setActiveFilters(null);
+      setCurrentSearchArea(null);
+      setHasMovedMap(false);
+  
+    } catch (error) {
+      console.error('Error loading favorite locations:', error);
+      setError('Failed to load favorite locations');
+    } finally {
+      setLoading(false);
+      setIsLoadingNewArea(false);
+    }
+  };
 
   const handleReturnToMyLocation = useCallback(() => {
     if (!mapInstance || !userLocation) return;
@@ -362,6 +445,18 @@ const MapLayout: FC = () => {
 
   const onUnmount = useCallback(() => {
     setMapInstance(null);
+  }, []);
+
+  useEffect(() => {
+      const handleLoadFavorites = () => {
+          loadFavoriteLocations();
+      };
+
+      window.addEventListener(LOAD_FAVORITES_EVENT, handleLoadFavorites);
+
+      return () => {
+          window.removeEventListener(LOAD_FAVORITES_EVENT, handleLoadFavorites);
+      };
   }, []);
 
   // Reset map when pathname or search params change
