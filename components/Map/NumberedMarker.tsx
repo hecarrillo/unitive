@@ -18,7 +18,7 @@ const NumberedMarker: React.FC<NumberedMarkerProps> = ({ number, selected, onCli
       `}
       onClick={onClick}
     >
-      {number < 0 ? 0 : number}
+      {number}
     </div>
   );
 };
