@@ -858,7 +858,7 @@ const MapLayout: FC = () => {
         </GoogleMap>
   
         {/* Map Controls Overlay */}
-        <div className="absolute top-20 left-4 flex flex-col gap-2 z-[60]"> 
+        <div className="absolute top-32 left-4 flex flex-col gap-8 z-[60]"> 
           {/* Show 'Return to Normal Mode' when in route or favorites mode */}
           {(currentMode === 'route' || currentMode === 'favorites') && (
             <Button
