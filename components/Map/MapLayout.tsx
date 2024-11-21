@@ -1,7 +1,7 @@
 "use client"
 
 import { FC, useState, useEffect, useCallback } from 'react';
-import { GoogleMap, Marker, useLoadScript } from '@react-google-maps/api';
+import { GoogleMap, Marker, useLoadScript, DirectionsRenderer } from '@react-google-maps/api';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -50,15 +50,29 @@ const defaultCenter: LatLng = {
 //   scale: isHovered ? 10 : (isSelected ? 9 : 7),
 // });
 
-const getMarkerIcon = (isHovered: boolean, isSelected: boolean) => ({
-  path: "M 12,2 C 8.1340068,2 5,5.1340068 5,9 c 0,5.25 7,13 7,13 0,0 7,-7.75 7,-13 0,-3.8659932 -3.134007,-7 -7,-7 z", // Pin SVG path
-  fillColor: isHovered ? '#ef4444' : '#00a600', 
-  fillOpacity: 1,
-  strokeWeight: 2,
-  strokeColor: isHovered ? '#dc2626' : '#274E13', // darker shade for stroke
-  scale: isHovered ? 2 : (isSelected ? 1.8 : 1.5),
-  anchor: new google.maps.Point(12, 23), // Centers the pin and keeps it properly positioned
-});
+const getMarkerIcon = (isHovered: boolean, isSelected: boolean, number?: number) => {
+  if (number !== undefined) {
+    return {
+      path: google.maps.SymbolPath.CIRCLE,
+      fillColor: isHovered ? '#ef4444' : '#22c55e',
+      fillOpacity: 1,
+      strokeWeight: 2,
+      strokeColor: '#ffffff',
+      scale: 15,
+      labelOrigin: new google.maps.Point(0, 0)
+    };
+  }
+  
+  return {
+    path: "M 12,2 C 8.1340068,2 5,5.1340068 5,9 c 0,5.25 7,13 7,13 0,0 7,-7.75 7,-13 0,-3.8659932 -3.134007,-7 -7,-7 z",
+    fillColor: isHovered ? '#ef4444' : '#00a600',
+    fillOpacity: 1,
+    strokeWeight: 2,
+    strokeColor: isHovered ? '#dc2626' : '#274E13',
+    scale: isHovered ? 2 : (isSelected ? 1.8 : 1.5),
+    anchor: new google.maps.Point(12, 23)
+  };
+};
   
 const LOAD_FAVORITES_EVENT = 'LOAD_FAVORITES_MAP';
 const LOAD_ROUTES_EVENT = 'LOAD_ROUTES_EVENT';
@@ -72,7 +86,9 @@ const MapLayout: FC = () => {
     libraries: ["places", "geometry"]
   });
 
-  const [loading, setLoading] = useState(true);
+  const [currentMode, setCurrentMode] = useState<'normal' | 'route' | 'favorites'>('normal');
+  const [directionsResult, setDirectionsResult] = useState<google.maps.DirectionsResult | null>(null);
+  const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);  const [loading, setLoading] = useState(true);
   const [initialDataLoaded, setInitialDataLoaded] = useState(false);
   const [locations, setLocations] = useState<Location[]>([]);
   const [center, setCenter] = useState<LatLng>(defaultCenter);
@@ -104,6 +120,7 @@ const MapLayout: FC = () => {
 
   const loadFavoriteLocations = async () => {
     try {
+      setCurrentMode('favorites');
       setIsLoadingNewArea(true);
       setLoading(true);
   
@@ -120,7 +137,7 @@ const MapLayout: FC = () => {
   
       // Fetch full location details for favorites using individual API calls
       const locationData = await Promise.all(
-        favoriteIds.map(async (locationId) => {
+        favoriteIds.map(async (locationId: string) => {
           const locResponse = await fetch(`/api/location/${locationId}`);
           if (!locResponse.ok) throw new Error(`Failed to fetch location ${locationId}`);
           return await locResponse.json();
@@ -185,10 +202,12 @@ const MapLayout: FC = () => {
 
   const loadRouteLocations = async () => {
     try {
+      setCurrentMode('route');
       setIsLoadingNewArea(true);
       setLoading(true);
+      setIsCalculatingRoute(true);
+      setDirectionsResult(null);
   
-      // Fetch favorite location IDs
       const favResponse = await fetch('/api/routes');
       const favData = await favResponse.json();
       const favoriteIds = favData.map((fav: { locationId: string }) => fav.locationId);
@@ -199,9 +218,9 @@ const MapLayout: FC = () => {
         return;
       }
   
-      // Fetch full location details for favorites using individual API calls
+      // Fetch location details
       const locationData = await Promise.all(
-        favoriteIds.map(async (locationId) => {
+        favoriteIds.map(async (locationId: string) => {
           const locResponse = await fetch(`/api/location/${locationId}`);
           if (!locResponse.ok) throw new Error(`Failed to fetch location ${locationId}`);
           return await locResponse.json();
@@ -232,38 +251,84 @@ const MapLayout: FC = () => {
       }
   
       setLocations(processedLocations);
-      setHasMore(false); // Since we're loading all favorites at once
   
-      // If there are locations, center the map on the first one
+      // Calculate route
       if (processedLocations.length > 0) {
-        const bounds = new google.maps.LatLngBounds();
-        processedLocations.forEach((location: Location) => {
-          bounds.extend({ lat: location.latitude, lng: location.longitude });
-        });
+        const directionsService = new google.maps.DirectionsService();
         
-        if (mapInstance) {
-          mapInstance.fitBounds(bounds);
-          // Adjust zoom if there's only one location
+        try {
+          // If only one location, no need for route calculation
           if (processedLocations.length === 1) {
-            mapInstance.setZoom(14);
+            setDirectionsResult(null);
+          } else {
+            // Use first location as start point
+            const startLocation = processedLocations[0];
+            const startPoint = new google.maps.LatLng(
+              startLocation.latitude,
+              startLocation.longitude
+            );
+            
+            // Use locations in between as waypoints
+            const waypoints = processedLocations.slice(1, -1).map(location => ({
+              location: new google.maps.LatLng(location.latitude, location.longitude),
+              stopover: true
+            }));
+  
+            // Last location is the destination
+            const lastLocation = processedLocations[processedLocations.length - 1];
+            const destination = new google.maps.LatLng(
+              lastLocation.latitude,
+              lastLocation.longitude
+            );
+  
+            const routeOptions = {
+              origin: startPoint,
+              destination: destination,
+              waypoints: waypoints,
+              optimizeWaypoints: true,
+              travelMode: google.maps.TravelMode.WALKING,
+            };
+  
+            const result = await directionsService.route(routeOptions);
+            setDirectionsResult(result);
           }
+          
+          // Fit bounds to show all locations
+          if (mapInstance) {
+            const bounds = new google.maps.LatLngBounds();
+            processedLocations.forEach((location) => {
+              bounds.extend({ 
+                lat: location.latitude, 
+                lng: location.longitude 
+              });
+            });
+            mapInstance.fitBounds(bounds);
+            if (processedLocations.length === 1) {
+              mapInstance.setZoom(14);
+            }
+          }
+        } catch (routeError) {
+          console.error('Error calculating route:', routeError);
+          setError('Failed to calculate route. The locations might be too far apart for walking.');
         }
       }
   
-      // Clear any active filters or search areas
+      setHasMore(false);
       setActiveFilters(null);
       setCurrentSearchArea(null);
       setHasMovedMap(false);
   
     } catch (error) {
-      console.error('Error loading favorite locations:', error);
-      setError('Failed to load favorite locations');
+      console.error('Error loading route locations:', error);
+      setError('Failed to load route locations');
+      setDirectionsResult(null);
     } finally {
       setLoading(false);
       setIsLoadingNewArea(false);
+      setIsCalculatingRoute(false);
     }
   };
-
+  
   const handleReturnToMyLocation = useCallback(() => {
     if (!mapInstance || !userLocation) return;
     
@@ -359,41 +424,7 @@ const MapLayout: FC = () => {
     }
   }, [mapInstance]);
   
-  const getUserLocation = useCallback(async () => {
-    setIsLoadingLocation(true);
-    try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 5000,
-          maximumAge: 0
-        });
-      });
-  
-      const userPos = {
-        lat: position.coords.latitude,
-        lng: position.coords.longitude
-      };
-      
-      setUserLocation(userPos);
-      setCenter(userPos);
-      
-      // Initial load of locations around user
-      const initialDistance = 5; // 2km initial radius
-      setCurrentSearchArea({ center: userPos, distance: initialDistance }); 
-      await fetchLocationsInArea(userPos, initialDistance);
-    } catch (error) {
-      console.error('Error getting location:', error);
-      // Fall back to default location and load data there
-      const initialDistance = 5;
-      setCurrentSearchArea({ center: defaultCenter, distance: initialDistance }); 
-      await fetchLocationsInArea(defaultCenter, initialDistance);
-    } finally {
-      setIsLoadingLocation(false);
-    }
-  }, []);
-
-  const fetchLocationsInArea = async (center: LatLng, distance: number, page: number = 1) => {
+  const fetchLocationsInArea: (center: LatLng, distance: number, page?: number) => Promise<void> = useCallback(async (center: LatLng, distance: number, page: number = 1) => {
     try {
       const isInitialLoad = page === 1;
       if (isInitialLoad) {
@@ -458,7 +489,42 @@ const MapLayout: FC = () => {
       setLoadingMore(false);
       setIsLoadingNewArea(false);
     }
-  };
+  } , []);
+
+  const getUserLocation = useCallback(async () => {
+    setIsLoadingLocation(true);
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0
+        });
+      });
+  
+      const userPos = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude
+      };
+      
+      setUserLocation(userPos);
+      setCenter(userPos);
+      
+      // Initial load of locations around user
+      const initialDistance = 5; // 2km initial radius
+      setCurrentSearchArea({ center: userPos, distance: initialDistance }); 
+      await fetchLocationsInArea(userPos, initialDistance);
+    } catch (error) {
+      console.error('Error getting location:', error);
+      // Fall back to default location and load data there
+      const initialDistance = 5;
+      setCurrentSearchArea({ center: defaultCenter, distance: initialDistance }); 
+      await fetchLocationsInArea(defaultCenter, initialDistance);
+    } finally {
+      setIsLoadingLocation(false);
+    }
+  }, [fetchLocationsInArea]);
+
 
   const handleMapIdle = useCallback(() => {
     if (!mapInstance || !currentSearchArea) return;
@@ -551,7 +617,21 @@ const MapLayout: FC = () => {
     return () => {
         window.removeEventListener(LOAD_ROUTES_EVENT, handleLoadRoute);
     };
-}, []);
+  }, []);
+
+  const returnToNormalMode = useCallback(async () => {
+    setCurrentMode('normal');
+    setDirectionsResult(null); // Clear any existing route
+    setLocations([]); // Clear locations
+    setHasMore(true);
+    
+    // Return to user's location or default location and load nearby places
+    if (userLocation) {
+      await fetchLocationsInArea(userLocation, 5);
+    } else {
+      await fetchLocationsInArea(defaultCenter, 5);
+    }
+  }, [userLocation, fetchLocationsInArea]);
 
   // Reset map when pathname or search params change
   useEffect(() => {
@@ -560,7 +640,7 @@ const MapLayout: FC = () => {
       mapInstance.setCenter(userLocation ? new google.maps.LatLng(userLocation.lat, userLocation.lng) : defaultCenter);
       setSelectedPlace(null);
     }
-  }, [pathname, searchParams, mapInstance]);
+  }, [pathname, searchParams, mapInstance, userLocation]);
 
   useEffect(() => {
     if (locations.length > 0) {
@@ -623,7 +703,7 @@ const MapLayout: FC = () => {
     { lat: center.lat(), lng: center.lng() },
     Math.ceil(radius)
   );
-}, [mapInstance, activeFilters]);
+}, [mapInstance, activeFilters, fetchLocationsInArea]);
 
   const handleLocationSelect = (location: Location) => {
     // Store current map state before changing it
@@ -709,6 +789,20 @@ const MapLayout: FC = () => {
           onUnmount={onUnmount}
           onIdle={handleMapIdle}
         >
+          {directionsResult && (
+            <DirectionsRenderer
+              directions={directionsResult}
+              options={{
+                suppressMarkers: true, // We'll handle markers ourselves
+                polylineOptions: {
+                  strokeColor: '#22c55e',
+                  strokeWeight: 4,
+                  strokeOpacity: 0.8,
+                }
+              }}
+            />
+          )}
+
           {/* User Location Marker */}
           {userLocation && (
             <Marker
@@ -724,25 +818,60 @@ const MapLayout: FC = () => {
             />
           )}
 
-          {locations.map(place => {
+          {/* Location Markers */}
+          {locations.map((place, index) => {
             const isHovered = hoveredPlace === place.id;
             const isSelected = selectedPlace?.id === place.id;
+            let markerOrder: number | undefined;
             
+            if (directionsResult?.routes[0]?.waypoint_order) {
+              // Find this location's position in the waypoint order
+              const waypointIndex = directionsResult.routes[0].waypoint_order.findIndex(
+                (order) => order === index
+              );
+              
+              if (waypointIndex !== -1) {
+                // Add 1 to make it human-readable (start at 1)
+                markerOrder = waypointIndex + 1;
+              } else if (index === locations.length - 1) {
+                // If this is the last location (destination), give it the last number
+                markerOrder = locations.length;
+              }
+            }
+
             return (
               <Marker
                 key={place.id}
                 position={{lat: place.latitude, lng: place.longitude}}
                 onClick={() => handleMarkerClick(place)}
                 animation={isSelected ? google.maps.Animation.BOUNCE : undefined}
-                icon={getMarkerIcon(isHovered, isSelected)}
+                icon={getMarkerIcon(isHovered, isSelected, markerOrder)}
+                label={markerOrder !== undefined ? {
+                  text: markerOrder.toString(),
+                  color: 'white',
+                  fontWeight: 'bold',
+                  fontSize: '14px'
+                } : undefined}
               />
             );
           })}
         </GoogleMap>
   
-      {/* Map Controls Overlay */}
-      <div className="absolute top-20 left-4 flex flex-col gap-2 z-[60]"> 
-      {hasMovedMap && (
+        {/* Map Controls Overlay */}
+        <div className="absolute top-20 left-4 flex flex-col gap-2 z-[60]"> 
+          {/* Show 'Return to Normal Mode' when in route or favorites mode */}
+          {(currentMode === 'route' || currentMode === 'favorites') && (
+            <Button
+              className="bg-white text-black hover:text-black shadow-lg hover:shadow-xl border flex items-center gap-2"
+              onClick={returnToNormalMode}
+            >
+              <RefreshCw className="w-4 h-4" />
+              Return to Normal Mode
+            </Button>
+          )}
+
+          {/* Show 'Load places in this area' only in normal mode */}
+          {currentMode === 'normal' && hasMovedMap && (
             <Button
               className="bg-white text-black hover:text-black shadow-lg hover:shadow-xl border"
               onClick={handleLoadCurrentArea}
