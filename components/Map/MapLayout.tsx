@@ -11,6 +11,7 @@ import LocationsBar from './LocationsBar';
 import SearchHeader from './SearchHeader';
 import { PersonStanding } from 'lucide-react';
 import { MessageSquarePlus } from 'lucide-react';
+import { fitMapToMexicoCity, shouldZoomToCity } from '@/lib/map-utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 
@@ -169,22 +170,31 @@ const MapLayout: FC = () => {
           }));
         }
       }
-  
+      
       setLocations(processedLocations);
-      setHasMore(false); // Since we're loading all favorites at once
+      setHasMore(false);
   
-      // Fit bounds to show all locations
+      // First zoom to Mexico City
       if (mapInstance) {
-        const bounds = new google.maps.LatLngBounds();
-        processedLocations.forEach((location) => {
-          bounds.extend({ 
-            lat: location.latitude, 
-            lng: location.longitude 
-          });
-        });
-        mapInstance.fitBounds(bounds);
-        if (processedLocations.length === 1) {
-          mapInstance.setZoom(14);
+        fitMapToMexicoCity(mapInstance);
+        
+        // Then, after a slight delay, fit to the location markers if there are any
+        if (processedLocations.length > 0) {
+          setTimeout(() => {
+            const bounds = new google.maps.LatLngBounds();
+            processedLocations.forEach((location) => {
+              bounds.extend({ 
+                lat: location.latitude, 
+                lng: location.longitude 
+              });
+            });
+            mapInstance.fitBounds(bounds);
+            
+            // Ensure we don't zoom in too much for single locations
+            if (processedLocations.length === 1) {
+              mapInstance.setZoom(14);
+            }
+          }, 1000); // 1 second delay for smooth transition
         }
       }
 
@@ -350,6 +360,9 @@ const MapLayout: FC = () => {
     const center = mapInstance.getCenter();
     if (!center) return;
   
+    // First, zoom out to show all of Mexico City
+    fitMapToMexicoCity(mapInstance);
+
     const searchParams = new URLSearchParams({
       latitude: center.lat().toString(),
       longitude: center.lng().toString(),
@@ -380,12 +393,12 @@ const MapLayout: FC = () => {
       if (!response.ok) throw new Error('Failed to fetch locations');
       
       const data: ApiResponse = await response.json();
+      let processedLocations = data.locations;
       
-      const locationIds = data.locations
+      // Process images
+      const locationIds = processedLocations
         .filter(location => location.image)
         .map(location => location.id);
-      
-      let processedLocations = data.locations;
       
       if (locationIds.length > 0) {
         const imageResponse = await fetch('/api/locationImages', {
@@ -406,6 +419,25 @@ const MapLayout: FC = () => {
       setLocations(processedLocations);
       setHasMore(data.page * data.perPage < data.total);
       setCurrentPage(1);
+      
+      // After locations are loaded, fit bounds to show all locations
+      if (processedLocations.length > 0) {
+        setTimeout(() => {
+          const bounds = new google.maps.LatLngBounds();
+          processedLocations.forEach((location) => {
+            bounds.extend({ 
+              lat: location.latitude, 
+              lng: location.longitude 
+            });
+          });
+          mapInstance.fitBounds(bounds);
+          
+          // Ensure we don't zoom in too much for single locations
+          if (processedLocations.length === 1) {
+            mapInstance.setZoom(14);
+          }
+        }, 1000); // 1 second delay for smooth transition
+      }
       
       // Only update search area if we're using radius-based search
       if (filters.radius !== null) {
@@ -653,6 +685,13 @@ const MapLayout: FC = () => {
   useEffect(() => {
     getUserLocation();
   }, [getUserLocation]);
+
+  // Add this effect to handle initial map bounds
+  useEffect(() => {
+    if (mapInstance && shouldZoomToCity(currentMode, Boolean(activeFilters?.searchTerm))) {
+      fitMapToMexicoCity(mapInstance);
+    }
+  }, [mapInstance, currentMode, activeFilters?.searchTerm]);
 
   const handleMarkerClick = (place: Location) => {
     // Store current map state before changing it

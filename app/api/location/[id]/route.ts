@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { withDatabase } from '@/middleware/database';
 
+
 const fetchLocationImage = async (imagePath: string | null) => {
   if (!imagePath) return null;
 
