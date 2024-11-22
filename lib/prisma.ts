@@ -1,31 +1,25 @@
 // lib/prisma.ts
 import { PrismaClient } from '@prisma/client'
 
-const prismaClientSingleton = () => {
-  return new PrismaClient({
-    log: ['error'],
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL
-      }
+const prismaGlobal = global as typeof global & {
+  prisma?: PrismaClient
+}
+
+const prisma = prismaGlobal.prisma || new PrismaClient({
+  log: ['error'],
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL,
     },
-    // Add connection pool configuration here
-    errorFormat: 'pretty',
-    // add connection pooling options here
-    
-  })
-}
+  },
+  // Connection pooling configuration for Supabase
+  // https://www.prisma.io/docs/concepts/components/prisma-client/connection-pooling
 
-type PrismaClientSingleton = ReturnType<typeof prismaClientSingleton>
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClientSingleton | undefined
-}
-
-const prisma = globalForPrisma.prisma ?? prismaClientSingleton()
+})
 
 if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma
+  prismaGlobal.prisma = prisma
 }
 
 export default prisma

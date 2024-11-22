@@ -125,8 +125,6 @@ export async function GET(request: NextRequest) {
       { error: 'An error occurred while processing your request' }, 
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 });
 }
