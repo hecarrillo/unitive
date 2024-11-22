@@ -3,13 +3,15 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import prisma from '@/lib/prisma'
 import { appCache } from '@/lib/cache'
+import { withDatabase } from '@/middleware/database'
 import { ReviewSource, Prisma } from '@prisma/client'
 
 export async function DELETE(
   req: Request,
   { params }: { params: { reviewId: string } }
 ) {
-  try {
+  return withDatabase( async () => {
+    try {
     const supabase = createRouteHandlerClient({ cookies })
     const { reviewId } = params
 
@@ -102,4 +104,5 @@ export async function DELETE(
       { status: 500 }
     )
   }
+});
 }

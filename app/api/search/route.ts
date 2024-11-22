@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { withDatabase } from '@/middleware/database';
 
 export async function GET(request: NextRequest) {
+  return withDatabase( async () => {
   const searchParams = request.nextUrl.searchParams;
   
   const searchName = searchParams.get('name')?.trim() || '';
@@ -126,4 +128,5 @@ export async function GET(request: NextRequest) {
   } finally {
     await prisma.$disconnect();
   }
+});
 }

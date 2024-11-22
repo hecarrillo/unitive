@@ -3,9 +3,11 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import { appCache } from '@/lib/cache';
+import { withDatabase } from '@/middleware/database';
 
 export async function DELETE(request: NextRequest) {
-  try {
+  return withDatabase( async () => {
+    try {
     const supabase = createRouteHandlerClient({ cookies });
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
@@ -33,4 +35,5 @@ export async function DELETE(request: NextRequest) {
       { status: 500 }
     );
   }
+});
 }

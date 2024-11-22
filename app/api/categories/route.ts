@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { withDatabase } from '@/middleware/database';
 import { appCache } from '@/lib/cache';
 
 const CATEGORIES_CACHE_KEY = 'location_categories';
 
 export async function GET() {
+  return withDatabase(async () => {
   try {
     // Try to get categories from cache first
     const cachedCategories = appCache.get(CATEGORIES_CACHE_KEY);
@@ -37,5 +39,5 @@ export async function GET() {
       { error: 'Internal Server Error' },
       { status: 500 }
     );
-  }
+  }});
 }

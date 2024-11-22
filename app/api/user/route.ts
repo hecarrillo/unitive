@@ -2,8 +2,11 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { withDatabase } from '@/middleware/database';
 
 export async function POST(request: Request) {
+  return withDatabase( async () => {
+
   try {
     const supabase = createRouteHandlerClient({ cookies });
     
@@ -54,4 +57,5 @@ export async function POST(request: Request) {
   } finally {
     await prisma.$disconnect();
   }
+});
 }

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
+import { withDatabase } from '@/middleware/database';
 import { appCache } from '@/lib/cache'; // Adjust the import path as needed
 
 // Type for the favorites data
@@ -11,6 +12,7 @@ type FavoriteLocation = {
 };
 
 export async function GET(request: NextRequest) {
+  return withDatabase( async () => {
   try {
     const supabase = createRouteHandlerClient({ cookies });
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -46,11 +48,12 @@ export async function GET(request: NextRequest) {
       { error: 'Internal Server Error' },
       { status: 500 }
     );
-  }
+  }} );
 }
 
 export async function POST(request: NextRequest) {
-  try {
+  return withDatabase( async () => {
+    try {
     const supabase = createRouteHandlerClient({ cookies });
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
@@ -81,10 +84,12 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+} );
 }
 
 export async function DELETE(request: NextRequest) {
-  try {
+  return withDatabase( async () => {
+    try {
     const supabase = createRouteHandlerClient({ cookies });
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
@@ -115,4 +120,5 @@ export async function DELETE(request: NextRequest) {
       { status: 500 }
     );
   }
+});
 }

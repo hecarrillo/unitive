@@ -5,9 +5,11 @@ import prisma from '@/lib/prisma'
 import { reviewSchema } from '@/lib/validations/review'
 import { appCache } from '@/lib/cache'
 import { ReviewSource, Prisma } from '@prisma/client'
+import { withDatabase } from '@/middleware/database'
 
 export async function POST(req: Request) {
-  try {
+  return withDatabase( async () => {
+    try {
     const supabase = createRouteHandlerClient({ cookies })
     
     // Check authentication
@@ -122,10 +124,12 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+});
 }
 
 export async function GET(req: Request) {
-  try {
+  return withDatabase( async () => {
+    try {
     const supabase = createRouteHandlerClient({ cookies })
     const { searchParams } = new URL(req.url)
     const locationId = searchParams.get('locationId')
@@ -163,4 +167,5 @@ export async function GET(req: Request) {
       { status: 500 }
     );
   }
+});
 }

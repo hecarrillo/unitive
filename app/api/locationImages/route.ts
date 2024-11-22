@@ -1,9 +1,11 @@
 // app/api/locationImages/route.ts
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { withDatabase } from '@/middleware/database';
 
 export async function POST(request: Request) {
-  try {
+  return withDatabase( async () => {
+    try {
     const { locationIds } = await request.json();
 
     if (!Array.isArray(locationIds)) {
@@ -62,4 +64,5 @@ export async function POST(request: Request) {
   } finally {
     await prisma.$disconnect();
   }
+});
 }

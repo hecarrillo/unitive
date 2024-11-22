@@ -2,6 +2,7 @@
 
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { withDatabase } from '@/middleware/database';
 
 const fetchLocationImage = async (imagePath: string | null) => {
   if (!imagePath) return null;
@@ -33,6 +34,7 @@ export async function GET(
   request: Request,
   { params }: { params: { id: string } }
 ) {
+  return withDatabase( async () => {
   try {
     const location = await prisma.touristicLocation.findUnique({
       where: {
@@ -89,4 +91,5 @@ export async function GET(
   } finally {
     await prisma.$disconnect();
   }
+});
 }

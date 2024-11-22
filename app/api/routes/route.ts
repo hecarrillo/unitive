@@ -3,6 +3,7 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import { appCache } from '@/lib/cache';
+import { withDatabase } from '@/middleware/database';
 
 // Type for the route locations data
 type RouteLocation = {
@@ -10,7 +11,8 @@ type RouteLocation = {
 };
 
 export async function GET(request: NextRequest) {
-  try {
+  return withDatabase( async () => {
+    try {
     const supabase = createRouteHandlerClient({ cookies });
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
@@ -46,10 +48,12 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+});
 }
 
 export async function POST(request: NextRequest) {
-  try {
+  return withDatabase( async () => {
+    try {
     const supabase = createRouteHandlerClient({ cookies });
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
@@ -80,10 +84,12 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+});
 }
 
 export async function DELETE(request: NextRequest) {
-  try {
+  return withDatabase( async () => {
+    try {
     const supabase = createRouteHandlerClient({ cookies });
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
@@ -114,4 +120,5 @@ export async function DELETE(request: NextRequest) {
       { status: 500 }
     );
   }
+});
 }
