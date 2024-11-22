@@ -153,7 +153,7 @@ const MapLayout: FC = () => {
       //   .filter((location: Location) => location.image)
       //   .map((location: Location) => location.id);
   
-      let processedLocations = locationData;
+      const processedLocations = locationData;
   
       // if (locationIds.length > 0) {
       //   const imageResponse = await fetch('/api/locationImages', {
@@ -244,7 +244,7 @@ const MapLayout: FC = () => {
       //   .filter((location: Location) => location.image)
       //   .map((location: Location) => location.id);
   
-      let processedLocations = locationData;
+      const processedLocations = locationData;
   
       // if (locationIds.length > 0) {
       //   const imageResponse = await fetch('/api/locationImages', {
