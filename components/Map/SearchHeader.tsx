@@ -253,7 +253,7 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
               </Button>
             </DialogTrigger>
   
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md z-[999]">
               {filterConfirmation.isShowing ? (
                 <div className="p-4">
                   <DialogHeader>
