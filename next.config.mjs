@@ -4,10 +4,6 @@ const nextConfig = {
   images: {
       domains: ['es.wikipedia.org'],
   },
-  // Add these
-  experimental: {
-      serverActions: true
-  },
   // This ensures proper static/dynamic rendering
   output: 'standalone',
 }
