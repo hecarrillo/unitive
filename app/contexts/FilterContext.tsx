@@ -13,6 +13,8 @@ interface FilterContextType {
   radius: number;
   setRadius: Dispatch<SetStateAction<number>>;
   resetFilters: () => void;
+  isNameSearch: boolean;
+  setIsNameSearch: Dispatch<SetStateAction<boolean>>;
 }
 
 const FilterContext = createContext<FilterContextType | undefined>(undefined);
@@ -22,8 +24,8 @@ export function FilterProvider({ children, initialRadius = 20 }: { children: Rea
   const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
   const [selectedAspects, setSelectedAspects] = useState<number[]>([]);
   const [radius, setRadius] = useState<number>(initialRadius);
+  const [isNameSearch, setIsNameSearch] = useState<boolean>(false);
 
-  // Load saved filters from localStorage on mount
   useEffect(() => {
     const savedFilters = localStorage.getItem('mapFilters');
     if (savedFilters) {
@@ -31,34 +33,36 @@ export function FilterProvider({ children, initialRadius = 20 }: { children: Rea
         searchTerm: savedSearchTerm,
         selectedCategories: savedCategories,
         selectedAspects: savedAspects,
-        radius: savedRadius
+        radius: savedRadius,
+        isNameSearch: savedIsNameSearch
       } = JSON.parse(savedFilters);
 
       setSearchTerm(savedSearchTerm);
       setSelectedCategories(savedCategories);
       setSelectedAspects(savedAspects);
       setRadius(savedRadius);
+      setIsNameSearch(savedIsNameSearch);
     }
   }, []);
 
-  // Save filters to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem('mapFilters', JSON.stringify({
       searchTerm,
       selectedCategories,
       selectedAspects,
-      radius
+      radius,
+      isNameSearch
     }));
-  }, [searchTerm, selectedCategories, selectedAspects, radius]);
+  }, [searchTerm, selectedCategories, selectedAspects, radius, isNameSearch]);
 
   const resetFilters = () => {
     setSearchTerm('');
     setSelectedCategories([]);
     setSelectedAspects([]);
     setRadius(initialRadius);
+    setIsNameSearch(false);
     localStorage.removeItem('mapFilters');
   };
-
   return (
     <FilterContext.Provider value={{
       searchTerm,
@@ -69,7 +73,9 @@ export function FilterProvider({ children, initialRadius = 20 }: { children: Rea
       setSelectedAspects,
       radius,
       setRadius,
-      resetFilters
+      resetFilters,
+      isNameSearch,
+      setIsNameSearch,
     }}>
       {children}
     </FilterContext.Provider>

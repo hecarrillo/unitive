@@ -73,7 +73,9 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
     setSelectedAspects,
     radius,
     setRadius,
-    resetFilters
+    resetFilters,
+    isNameSearch,
+    setIsNameSearch
   } = useFilters();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -90,10 +92,6 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
       radius: initialRadius
     }
   });
-
-  const handleClearFilters = () => {
-    handleReset();
-  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -126,24 +124,36 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
   }, []);
 
   const handleSearch = () => {
-    const searchRadius = searchTerm.trim() && !selectedCategories.length && !selectedAspects.length 
-      ? null 
-      : radius;
-
-    onFiltersChange({
-      searchTerm,
-      categoryIds: selectedCategories,
-      aspectIds: selectedAspects,
-      radius: searchRadius
-    });
+    if (searchTerm.trim()) {
+      // If there's a name search, clear filters
+      setIsNameSearch(true);
+      setSelectedCategories([]);
+      setSelectedAspects([]);
+      onFiltersChange({
+        searchTerm,
+        categoryIds: [],
+        aspectIds: [],
+        radius: null
+      });
+    } else {
+      // If using filters, clear search term
+      setIsNameSearch(false);
+      setSearchTerm('');
+      onFiltersChange({
+        searchTerm: '',
+        categoryIds: selectedCategories,
+        aspectIds: selectedAspects,
+        radius
+      });
+    }
 
     setFilterConfirmation({
       isShowing: true,
       appliedFilters: {
-        categories: selectedCategories.length,
-        aspects: selectedAspects.length,
+        categories: isNameSearch ? 0 : selectedCategories.length,
+        aspects: isNameSearch ? 0 : selectedAspects.length,
         hasSearchTerm: searchTerm.trim() !== '',
-        radius: radius
+        radius: isNameSearch ? 0 : radius
       }
     });
 
@@ -220,17 +230,29 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
           <div className="relative w-[40%]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
             <Input 
-              className="w-full pl-10 pr-4 white"
-              placeholder="Search locations..."
+              className={`w-full pl-10 pr-4 white ${!isNameSearch && selectedCategories.length + selectedAspects.length > 0 ? 'opacity-50' : ''}`}
+              placeholder={!isNameSearch && selectedCategories.length + selectedAspects.length > 0 ? "Clear filters to search by name..." : "Location name..."}
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                if (e.target.value.trim() && !isNameSearch) {
+                  setSelectedCategories([]);
+                  setSelectedAspects([]);
+                }
+              }}
               onKeyPress={handleKeyPress}
+              disabled={!isNameSearch && selectedCategories.length + selectedAspects.length > 0}
             />
           </div>
-  
+
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="gap-2 white">
+              <Button 
+                variant="outline" 
+                className="gap-2 white"
+                disabled={isNameSearch && searchTerm.trim() !== ''}
+                title={isNameSearch && searchTerm.trim() !== '' ? "Clear name search to use filters" : ""}
+              >
                 {filterConfirmation.isShowing ? (
                   <div className="flex items-center gap-2">
                     <span>Filters Applied</span>
@@ -254,6 +276,13 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
             </DialogTrigger>
   
             <DialogContent className="sm:max-w-md z-[999]">
+              {searchTerm.trim() !== '' && (
+                <div className="mb-4 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <p className="text-sm text-yellow-700">
+                    Note: Using filters will clear your name search
+                  </p>
+                </div>
+              )}
               {filterConfirmation.isShowing ? (
                 <div className="p-4">
                   <DialogHeader>
