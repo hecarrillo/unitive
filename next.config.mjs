@@ -4,8 +4,6 @@ const nextConfig = {
   images: {
       domains: ['es.wikipedia.org'],
   },
-  // This ensures proper static/dynamic rendering
-  output: 'standalone',
 }
 
 export default nextConfig;

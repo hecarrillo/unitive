@@ -7,7 +7,7 @@ import { useSupabase } from "@/app/supabase-provider";
 
 export default function Social({ redirectTo }: { redirectTo: string }) {
   const { supabase } = useSupabase();
-  const origin = 'http://localhost:3000';
+  const origin = process.env.REDIRECT_URL_ORIGIN;
   async function loginWithProvider(provider: "github" | "google") {
     console.log(window.location.origin +
       `/auth/callback?next=` +
