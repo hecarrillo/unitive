@@ -142,34 +142,34 @@ const MapLayout: FC = () => {
       // Fetch full location details for favorites using individual API calls
       const locationData = await Promise.all(
         favoriteIds.map(async (locationId: string) => {
-          const locResponse = await fetch(`/api/location/${locationId}`);
+          const locResponse = await fetch(`/api/location/${locationId}?imgSize=90`);
           if (!locResponse.ok) throw new Error(`Failed to fetch location ${locationId}`);
           return await locResponse.json();
         })
       );
   
-      // Process locations and fetch images
-      const locationIds = locationData
-        .filter((location: Location) => location.image)
-        .map((location: Location) => location.id);
+      // // Process locations and fetch images
+      // const locationIds = locationData
+      //   .filter((location: Location) => location.image)
+      //   .map((location: Location) => location.id);
   
       let processedLocations = locationData;
   
-      if (locationIds.length > 0) {
-        const imageResponse = await fetch('/api/locationImages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ locationIds }),
-        });
+      // if (locationIds.length > 0) {
+      //   const imageResponse = await fetch('/api/locationImages', {
+      //     method: 'POST',
+      //     headers: { 'Content-Type': 'application/json' },
+      //     body: JSON.stringify({ locationIds }),
+      //   });
   
-        if (imageResponse.ok) {
-          const images = await imageResponse.json();
-          processedLocations = processedLocations.map((location: Location) => ({
-            ...location,
-            image: images[location.id] || null
-          }));
-        }
-      }
+      //   if (imageResponse.ok) {
+      //     const images = await imageResponse.json();
+      //     processedLocations = processedLocations.map((location: Location) => ({
+      //       ...location,
+      //       image: images[location.id] || null
+      //     }));
+      //   }
+      // }
       
       setLocations(processedLocations);
       setHasMore(false);
@@ -233,34 +233,34 @@ const MapLayout: FC = () => {
       // Fetch location details
       const locationData = await Promise.all(
         favoriteIds.map(async (locationId: string) => {
-          const locResponse = await fetch(`/api/location/${locationId}`);
+          const locResponse = await fetch(`/api/location/${locationId}?imgSize=90`);
           if (!locResponse.ok) throw new Error(`Failed to fetch location ${locationId}`);
           return await locResponse.json();
         })
       );
   
-      // Process locations and fetch images
-      const locationIds = locationData
-        .filter((location: Location) => location.image)
-        .map((location: Location) => location.id);
+      // // Process locations and fetch images
+      // const locationIds = locationData
+      //   .filter((location: Location) => location.image)
+      //   .map((location: Location) => location.id);
   
       let processedLocations = locationData;
   
-      if (locationIds.length > 0) {
-        const imageResponse = await fetch('/api/locationImages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ locationIds }),
-        });
+      // if (locationIds.length > 0) {
+      //   const imageResponse = await fetch('/api/locationImages', {
+      //     method: 'POST',
+      //     headers: { 'Content-Type': 'application/json' },
+      //     body: JSON.stringify({ locationIds }),
+      //   });
   
-        if (imageResponse.ok) {
-          const images = await imageResponse.json();
-          processedLocations = processedLocations.map((location: Location) => ({
-            ...location,
-            image: images[location.id] || null
-          }));
-        }
-      }
+      //   if (imageResponse.ok) {
+      //     const images = await imageResponse.json();
+      //     processedLocations = processedLocations.map((location: Location) => ({
+      //       ...location,
+      //       image: images[location.id] || null
+      //     }));
+      //   }
+      // }
   
       setLocations(processedLocations);
   
