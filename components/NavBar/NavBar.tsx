@@ -15,6 +15,7 @@ const navItems = [
     { name: 'Home', path: '/', icon: Home },
     { name: 'Favorites', path: '/', icon: Heart }, // Changed path to '/' since we'll handle it differently
     { name: 'Touristic Route', path: '/', icon: Map },
+    { name: 'Feedback', path: 'https://forms.gle/QKjKGcc1q9bGNWiw7', icon: Heart },
 ];
 
 const NavBar: FC = () => {

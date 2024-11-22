@@ -10,6 +10,9 @@ import Loading from '../utils/Loading';
 import LocationsBar from './LocationsBar';
 import SearchHeader from './SearchHeader';
 import { PersonStanding } from 'lucide-react';
+import { MessageSquarePlus } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 
 interface LatLng {
   lat: number;
@@ -901,6 +904,25 @@ const MapLayout: FC = () => {
           </Button>
         </div>
       )}
+
+      <div className="fixed bottom-48 left-4 z-[70]"> {/* z-[70] to stay above other elements */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                className="bg-white/80 hover:bg-white text-black border shadow-lg rounded-full w-10 h-10 p-0 flex items-center justify-center backdrop-blur-sm transition-all duration-200"
+                onClick={() => window.open('https://forms.gle/QKjKGcc1q9bGNWiw7', '_blank', 'noopener,noreferrer')}
+                aria-label="Provide feedback"
+              >
+                <MessageSquarePlus className="w-5 h-5 text-green-600" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Share your feedback</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
   
       {/* Bottom Locations Bar - Adjusts width based on modal state and screen size */}
       {initialDataLoaded && locations.length > 0 && !isModalOpen && (
