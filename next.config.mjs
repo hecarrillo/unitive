@@ -1,9 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    reactStrictMode: true,
+  reactStrictMode: true,
   images: {
-    domains: ['es.wikipedia.org'],
+      domains: ['es.wikipedia.org'],
   },
-};
+  // Add these
+  experimental: {
+      serverActions: true
+  },
+  // This ensures proper static/dynamic rendering
+  output: 'standalone',
+}
 
 export default nextConfig;
