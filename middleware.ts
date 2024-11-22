@@ -1,13 +1,23 @@
 // middleware.ts
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
 
-// Define these constants directly in the middleware
-const protectedPaths = ['/dashboard', '/profile']; // add your protected paths
-const authPaths = ['/signin', '/signup', '/register']; // add your auth paths
+// Configure matcher
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
+};
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers: request.headers,
     },
@@ -22,16 +32,10 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          });
+          // If the cookie is being set with a specific path, remove it
+          if (options?.path) {
+            delete options.path;
+          }
           response.cookies.set({
             name,
             value,
@@ -39,19 +43,12 @@ export async function middleware(request: NextRequest) {
           });
         },
         remove(name: string, options: CookieOptions) {
-          request.cookies.set({
+          // If the cookie is being removed with a specific path, remove it
+          if (options?.path) {
+            delete options.path;
+          }
+          response.cookies.delete({
             name,
-            value: "",
-            ...options,
-          });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          });
-          response.cookies.set({
-            name,
-            value: "",
             ...options,
           });
         },
@@ -59,33 +56,7 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  const user = await supabase.auth.getUser();
-  const url = new URL(request.url);
-  const next = url.searchParams.get("next");
+  await supabase.auth.getSession();
 
-  if (user.data.user?.id) {
-    if (authPaths.includes(url.pathname)) {
-      return NextResponse.redirect(new URL("/", request.url));
-    }
-    return response;
-  } else {
-    if (protectedPaths.includes(url.pathname)) {
-      return NextResponse.redirect(
-        new URL("/signin?next=" + (next || url.pathname), request.url)
-      );
-    }
-    return response;
-  }
+  return response;
 }
-
-export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
-};
