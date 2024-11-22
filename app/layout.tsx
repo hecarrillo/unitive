@@ -5,6 +5,7 @@ import { FilterProvider } from './contexts/FilterContext'
 import NavBar from '../components/NavBar/NavBar'
 import Register from '@/components/supaauth/register';
 import { ToastStateProvider, Toaster } from "@/components/ui/toast"
+import { Analytics } from "@vercel/analytics/react"
 import "./globals.css";
 
 const geistSans = localFont({
@@ -39,6 +40,7 @@ export default function RootLayout({
           <ToastStateProvider>
           <FilterProvider>
             {children}
+            <Analytics/>
           </FilterProvider>
           <Toaster />
           </ToastStateProvider>
