@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import { Search, Sliders } from 'lucide-react';
 import {
@@ -19,6 +21,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import { useFilters } from '@/app/contexts/FilterContext';
 
 interface Category {
   id: number;
@@ -30,28 +33,67 @@ interface Aspect {
   name: string;
 }
 
-interface SearchFilters {
-  searchTerm: string;
-  categoryIds: number[];
-  aspectIds: number[];
-  radius: number | null;
-}
-
 interface SearchHeaderProps {
-  onFiltersChange: (filters: SearchFilters) => void;
+  onFiltersChange: (filters: {
+    searchTerm: string;
+    categoryIds: number[];
+    aspectIds: number[];
+    radius: number | null;
+  }) => void;
   initialRadius?: number;
 }
 
+interface FilterConfirmation {
+  isShowing: boolean;
+  appliedFilters: {
+    categories: number;
+    aspects: number;
+    hasSearchTerm: boolean;
+    radius: number;
+  };
+}
+
+const areFiltersActive = (
+  searchTerm: string, 
+  selectedCategories: number[], 
+  selectedAspects: number[]
+): boolean => {
+  return searchTerm.trim() !== '' || 
+    selectedCategories.length > 0 || 
+    selectedAspects.length > 0;
+};
+
 export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: SearchHeaderProps) {
+  const {
+    searchTerm,
+    setSearchTerm,
+    selectedCategories,
+    setSelectedCategories,
+    selectedAspects,
+    setSelectedAspects,
+    radius,
+    setRadius,
+    resetFilters
+  } = useFilters();
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [radius, setRadius] = useState(initialRadius);
   const [categories, setCategories] = useState<Category[]>([]);
   const [aspects, setAspects] = useState<Aspect[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<number[]>([]);
-  const [selectedAspects, setSelectedAspects] = useState<number[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filterConfirmation, setFilterConfirmation] = useState<FilterConfirmation>({
+    isShowing: false,
+    appliedFilters: {
+      categories: 0,
+      aspects: 0,
+      hasSearchTerm: false,
+      radius: initialRadius
+    }
+  });
+
+  const handleClearFilters = () => {
+    handleReset();
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -84,7 +126,6 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
   }, []);
 
   const handleSearch = () => {
-    // If there's only a search term, don't include radius
     const searchRadius = searchTerm.trim() && !selectedCategories.length && !selectedAspects.length 
       ? null 
       : radius;
@@ -95,6 +136,25 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
       aspectIds: selectedAspects,
       radius: searchRadius
     });
+
+    setFilterConfirmation({
+      isShowing: true,
+      appliedFilters: {
+        categories: selectedCategories.length,
+        aspects: selectedAspects.length,
+        hasSearchTerm: searchTerm.trim() !== '',
+        radius: radius
+      }
+    });
+
+    setIsDialogOpen(false);
+  };
+
+  const handleDismissConfirmation = () => {
+    setFilterConfirmation(prev => ({
+      ...prev,
+      isShowing: false
+    }));
   };
 
   const handleCategoryToggle = (categoryId: number) => {
@@ -114,24 +174,44 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
   };
 
   const handleReset = () => {
+    resetFilters();
+
+    // Clear all state
+    setSearchTerm('');
     setSelectedCategories([]);
     setSelectedAspects([]);
     setRadius(initialRadius);
-    setSearchTerm('');
+    
+    // Reset filter confirmation
+    setFilterConfirmation({
+      isShowing: false,
+      appliedFilters: {
+        categories: 0,
+        aspects: 0,
+        hasSearchTerm: false,
+        radius: initialRadius
+      }
+    });
+
+    // Notify parent component
     onFiltersChange({
       searchTerm: '',
       categoryIds: [],
       aspectIds: [],
       radius: initialRadius
     });
+
+    // Close the dialog
     setIsDialogOpen(false);
   };
+
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSearch();
     }
   };
+
 
   return (
     <div className="absolute top-0 left-0 right-0 z-50">
@@ -147,126 +227,186 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
               onKeyPress={handleKeyPress}
             />
           </div>
-
+  
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2 white">
-                Filters
-                {(selectedCategories.length > 0 || selectedAspects.length > 0) && (
-                  <span className="ml-1 h-5 w-5 rounded-full bg-green-600 text-white text-xs flex items-center justify-center">
-                    {selectedCategories.length + selectedAspects.length}
-                  </span>
+                {filterConfirmation.isShowing ? (
+                  <div className="flex items-center gap-2">
+                    <span>Filters Applied</span>
+                    <span className="h-5 w-5 rounded-full bg-green-600 text-white text-xs flex items-center justify-center">
+                      {filterConfirmation.appliedFilters.categories + 
+                       filterConfirmation.appliedFilters.aspects + 
+                       (filterConfirmation.appliedFilters.hasSearchTerm ? 1 : 0)}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span>Filters</span>
+                    {(selectedCategories.length > 0 || selectedAspects.length > 0) && (
+                      <span className="h-5 w-5 rounded-full bg-green-600 text-white text-xs flex items-center justify-center">
+                        {selectedCategories.length + selectedAspects.length}
+                      </span>
+                    )}
+                  </div>
                 )}
               </Button>
             </DialogTrigger>
-
+  
             <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-center mb-4">Filter Options</DialogTitle>
-              </DialogHeader>
-              
-              {error ? (
-                <div className="text-red-500 text-center p-4">{error}</div>
-              ) : (
-                <Tabs defaultValue="categories" className="w-full">
-                  <TabsList className="grid grid-cols-3 mb-4">
-                    <TabsTrigger value="categories" className="data-[state=active]:bg-green-600 data-[state=active]:text-white">
-                      Categories
-                      {selectedCategories.length > 0 && (
-                        <span className="ml-1 text-xs">({selectedCategories.length})</span>
-                      )}
-                    </TabsTrigger>
-                    <TabsTrigger value="aspects" className="data-[state=active]:bg-green-600 data-[state=active]:text-white">
-                      Aspects
-                      {selectedAspects.length > 0 && (
-                        <span className="ml-1 text-xs">({selectedAspects.length})</span>
-                      )}
-                    </TabsTrigger>
-                    <TabsTrigger value="radius" className="data-[state=active]:bg-green-600 data-[state=active]:text-white">
-                      Radius
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="categories">
-                    <ScrollArea className="h-[300px] w-full rounded-md border p-4">
-                      {isLoading ? (
-                        <div className="text-center py-4">Loading categories...</div>
-                      ) : (
-                        <div className="space-y-4">
-                          {categories.map((category) => (
-                            <div key={category.id} className="flex items-center space-x-2">
-                              <Checkbox 
-                                id={`category-${category.id}`}
-                                checked={selectedCategories.includes(category.id)}
-                                onCheckedChange={() => handleCategoryToggle(category.id)}
-                                className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
-                              />
-                              <Label htmlFor={`category-${category.id}`}>{category.name}</Label>
-                            </div>
-                          ))}
+              {filterConfirmation.isShowing ? (
+                <div className="p-4">
+                  <DialogHeader>
+                    <DialogTitle className="text-center mb-4">Filters Applied</DialogTitle>
+                  </DialogHeader>
+                  <div className="mb-6">
+                    <h3 className="font-medium mb-2">Active Filters:</h3>
+                    <div className="space-y-2">
+                      {filterConfirmation.appliedFilters.hasSearchTerm && (
+                        <div className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                          <span>Search Term: {searchTerm}</span>
                         </div>
                       )}
-                    </ScrollArea>
-                  </TabsContent>
-
-                  <TabsContent value="aspects">
-                    <ScrollArea className="h-[300px] w-full rounded-md border p-4">
-                      {isLoading ? (
-                        <div className="text-center py-4">Loading aspects...</div>
-                      ) : (
-                        <div className="space-y-4">
-                          {aspects.map((aspect) => (
-                            <div key={aspect.id} className="flex items-center space-x-2">
-                              <Checkbox 
-                                id={`aspect-${aspect.id}`}
-                                checked={selectedAspects.includes(aspect.id)}
-                                onCheckedChange={() => handleAspectToggle(aspect.id)}
-                                className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
-                              />
-                              <Label htmlFor={`aspect-${aspect.id}`}>{aspect.name}</Label>
-                            </div>
-                          ))}
+                      {filterConfirmation.appliedFilters.categories > 0 && (
+                        <div className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                          <span>Categories: {filterConfirmation.appliedFilters.categories} selected</span>
                         </div>
                       )}
-                    </ScrollArea>
-                  </TabsContent>
-
-                  <TabsContent value="radius">
-                    <div className="p-4 space-y-6">
-                      <div className="space-y-4">
-                        <div className="flex justify-between">
-                          <span className="text-sm font-medium">Search Radius</span>
-                          <span className="text-sm text-gray-500">{radius} km</span>
+                      {filterConfirmation.appliedFilters.aspects > 0 && (
+                        <div className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                          <span>Aspects: {filterConfirmation.appliedFilters.aspects} selected</span>
                         </div>
-                        <Slider
-                          value={[radius]}
-                          onValueChange={([value]) => setRadius(value)}
-                          max={20}
-                          step={1}
-                          className="py-2"
-                        />
+                      )}
+                      <div className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                        <span>Radius: {filterConfirmation.appliedFilters.radius} km</span>
                       </div>
                     </div>
-                  </TabsContent>
-                </Tabs>
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      onClick={handleReset}  // This should now properly clear everything
+                      variant="outline"
+                    >
+                      Clear All
+                    </Button>
+                    <Button
+                      onClick={handleDismissConfirmation}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      Add More Filters
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <DialogHeader>
+                    <DialogTitle className="text-center mb-4">Filter Options</DialogTitle>
+                  </DialogHeader>
+                  
+                  {error ? (
+                    <div className="text-red-500 text-center p-4">{error}</div>
+                  ) : (
+                    <Tabs defaultValue="categories" className="w-full">
+                      <TabsList className="grid grid-cols-3 mb-4">
+                        <TabsTrigger value="categories" className="data-[state=active]:bg-green-600 data-[state=active]:text-white">
+                          Categories
+                          {selectedCategories.length > 0 && (
+                            <span className="ml-1 text-xs">({selectedCategories.length})</span>
+                          )}
+                        </TabsTrigger>
+                        <TabsTrigger value="aspects" className="data-[state=active]:bg-green-600 data-[state=active]:text-white">
+                          Aspects
+                          {selectedAspects.length > 0 && (
+                            <span className="ml-1 text-xs">({selectedAspects.length})</span>
+                          )}
+                        </TabsTrigger>
+                        <TabsTrigger value="radius" className="data-[state=active]:bg-green-600 data-[state=active]:text-white">
+                          Radius
+                        </TabsTrigger>
+                      </TabsList>
+  
+                      <TabsContent value="categories">
+                        <ScrollArea className="h-[300px] w-full rounded-md border p-4">
+                          {isLoading ? (
+                            <div className="text-center py-4">Loading categories...</div>
+                          ) : (
+                            <div className="space-y-4">
+                              {categories.map((category) => (
+                                <div key={category.id} className="flex items-center space-x-2">
+                                  <Checkbox 
+                                    id={`category-${category.id}`}
+                                    checked={selectedCategories.includes(category.id)}
+                                    onCheckedChange={() => handleCategoryToggle(category.id)}
+                                    className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                                  />
+                                  <Label htmlFor={`category-${category.id}`}>{category.name}</Label>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </ScrollArea>
+                      </TabsContent>
+  
+                      <TabsContent value="aspects">
+                        <ScrollArea className="h-[300px] w-full rounded-md border p-4">
+                          {isLoading ? (
+                            <div className="text-center py-4">Loading aspects...</div>
+                          ) : (
+                            <div className="space-y-4">
+                              {aspects.map((aspect) => (
+                                <div key={aspect.id} className="flex items-center space-x-2">
+                                  <Checkbox 
+                                    id={`aspect-${aspect.id}`}
+                                    checked={selectedAspects.includes(aspect.id)}
+                                    onCheckedChange={() => handleAspectToggle(aspect.id)}
+                                    className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                                  />
+                                  <Label htmlFor={`aspect-${aspect.id}`}>{aspect.name}</Label>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </ScrollArea>
+                      </TabsContent>
+  
+                      <TabsContent value="radius">
+                        <div className="p-4 space-y-6">
+                          <div className="space-y-4">
+                            <div className="flex justify-between">
+                              <span className="text-sm font-medium">Search Radius</span>
+                              <span className="text-sm text-gray-500">{radius} km</span>
+                            </div>
+                            <Slider
+                              value={[radius]}
+                              onValueChange={([value]) => setRadius(value)}
+                              max={20}
+                              step={1}
+                              className="py-2"
+                            />
+                          </div>
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+                  )}
+  
+                  <div className="flex justify-end gap-2 mt-4">
+                    <Button 
+                      variant="outline" 
+                      onClick={handleReset}
+                      disabled={isLoading}
+                    >
+                      Reset
+                    </Button>
+                    <Button 
+                      className="bg-green-600 hover:bg-green-700"
+                      onClick={handleSearch}
+                      disabled={isLoading}
+                    >
+                      Apply Filters
+                    </Button>
+                  </div>
+                </>
               )}
-
-              <div className="flex justify-end gap-2 mt-4">
-                <Button 
-                  variant="outline" 
-                  onClick={handleReset}
-                  disabled={isLoading}
-                >
-                  Reset
-                </Button>
-                <Button 
-                  className="bg-green-600 hover:bg-green-700"
-                  onClick={handleSearch}
-                  disabled={isLoading}
-                >
-                  Apply Filters
-                </Button>
-              </div>
             </DialogContent>
           </Dialog>
           <Button 

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import SupabaseProvider from './supabase-provider'
+import { FilterProvider } from './contexts/FilterContext'
 import NavBar from '../components/NavBar/NavBar'
 import Register from '@/components/supaauth/register';
 import { ToastStateProvider, Toaster } from "@/components/ui/toast"
@@ -36,7 +37,9 @@ export default function RootLayout({
           <Register/>
           <NavBar/>
           <ToastStateProvider>
+          <FilterProvider>
             {children}
+          </FilterProvider>
             <Toaster />
           </ToastStateProvider>
         </SupabaseProvider>
