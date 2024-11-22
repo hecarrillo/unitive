@@ -40,7 +40,7 @@ export default function RootLayout({
           <FilterProvider>
             {children}
           </FilterProvider>
-            <Toaster />
+          <Toaster />
           </ToastStateProvider>
         </SupabaseProvider>
       </body>

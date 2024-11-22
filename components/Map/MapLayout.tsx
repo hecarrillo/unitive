@@ -50,11 +50,11 @@ const defaultCenter: LatLng = {
 //   scale: isHovered ? 10 : (isSelected ? 9 : 7),
 // });
 
-const getMarkerIcon = (isHovered: boolean, isSelected: boolean, number?: number) => {
-  if (number !== undefined) {
+const getMarkerIcon = (isHovered: boolean, isSelected: boolean, order?: string) => {
+  if (order !== undefined) {
     return {
       path: google.maps.SymbolPath.CIRCLE,
-      fillColor: isHovered ? '#ef4444' : '#22c55e',
+      fillColor: isHovered || order === 'D' ? '#ef4444' : '#22c55e',
       fillOpacity: 1,
       strokeWeight: 2,
       strokeColor: '#ffffff',
@@ -170,22 +170,21 @@ const MapLayout: FC = () => {
       setLocations(processedLocations);
       setHasMore(false); // Since we're loading all favorites at once
   
-      // If there are locations, center the map on the first one
-      if (processedLocations.length > 0) {
+      // Fit bounds to show all locations
+      if (mapInstance) {
         const bounds = new google.maps.LatLngBounds();
-        processedLocations.forEach((location: Location) => {
-          bounds.extend({ lat: location.latitude, lng: location.longitude });
+        processedLocations.forEach((location) => {
+          bounds.extend({ 
+            lat: location.latitude, 
+            lng: location.longitude 
+          });
         });
-        
-        if (mapInstance) {
-          mapInstance.fitBounds(bounds);
-          // Adjust zoom if there's only one location
-          if (processedLocations.length === 1) {
-            mapInstance.setZoom(14);
-          }
+        mapInstance.fitBounds(bounds);
+        if (processedLocations.length === 1) {
+          mapInstance.setZoom(14);
         }
       }
-  
+
       // Clear any active filters or search areas
       setActiveFilters(null);
       setCurrentSearchArea(null);
@@ -822,20 +821,13 @@ const MapLayout: FC = () => {
           {locations.map((place, index) => {
             const isHovered = hoveredPlace === place.id;
             const isSelected = selectedPlace?.id === place.id;
-            let markerOrder: number | undefined;
+            let markerOrder: string | undefined;
             
-            if (directionsResult?.routes[0]?.waypoint_order) {
-              // Find this location's position in the waypoint order
-              const waypointIndex = directionsResult.routes[0].waypoint_order.findIndex(
-                (order) => order === index
-              );
-              
-              if (waypointIndex !== -1) {
-                // Add 1 to make it human-readable (start at 1)
-                markerOrder = waypointIndex + 1;
+            if (currentMode === 'route' && locations.length > 1) {
+              if (index === 0) {
+                markerOrder = 'S';
               } else if (index === locations.length - 1) {
-                // If this is the last location (destination), give it the last number
-                markerOrder = locations.length;
+                markerOrder = 'D';
               }
             }
 
