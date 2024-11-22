@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { X, Home, User, Heart, Map, LogOut } from 'lucide-react';
 import { useSupabase } from '@/app/supabase-provider';
+// import user icon
+import { User as UserIcon } from 'lucide-react';
 
 const LOAD_FAVORITES_EVENT = 'LOAD_FAVORITES_MAP';
 const LOAD_ROUTES_EVENT = 'LOAD_ROUTES_EVENT';
@@ -80,11 +82,7 @@ const NavBar: FC = () => {
                 {/* User Profile Section */}
                 <div className="p-4 border-b">
                     <div className="flex items-center justify-center mb-4">
-                        <img 
-                            src="/api/placeholder/48/48"
-                            alt="User avatar" 
-                            className="w-16 h-16 rounded-full"
-                        />
+                        <UserIcon size={48} />
                     </div>
                     <p className="text-center text-gray-600">
                         {session?.user?.email}

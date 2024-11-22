@@ -23,13 +23,21 @@ interface LocationCardProps {
   onClose?: () => void;
 }
 
+const isImageSrcValid = (src: string) => {
+  const urlPattern = new RegExp(
+    "^(https?:\\/\\/)?" + // protocol
+    "((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.?)+[a-z]{2,}|" + // domain name
+    "((\\d{1,3}\\.){3}\\d{1,3}))" + // OR ip (v4) address
+    "(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*" + // port and path
+    "(\\?[;&a-z\\d%_.~+=-]*)?" + // query string
+    "(\\#[-a-z\\d_]*)?$", "i" // fragment locator
+  );
+  return !!urlPattern.test(src);
+};
+
 const LocationCard: React.FC<LocationCardProps> = ({ location, onClose }) => {
   const router = useRouter();
-
-  const onViewDetails = (location: Location) => {
-    router.push(`/location?id=${location.id}&name=${location.name}&review=${location.summarizedReview}&rating=${location.rating}&image=${location.image}`);
-  };
-
+  
   return (
     <Card className="fixed bottom-4 left-4 w-80 shadow-lg">
       <CardHeader className="relative pb-2">
@@ -49,7 +57,7 @@ const LocationCard: React.FC<LocationCardProps> = ({ location, onClose }) => {
       </CardHeader>
       <CardContent>
         <div className="w-full h-40 mb-4">
-          {location.image ? (
+          {location.image && isImageSrcValid(location.image) ? (
             <Image 
               src={location.image} 
               alt={location.name} 

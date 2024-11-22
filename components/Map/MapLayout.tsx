@@ -584,7 +584,7 @@ const MapLayout: FC = () => {
       setCurrentPage(prev => prev + 1);
       fetchLocationsInArea(currentSearchArea!.center, currentSearchArea!.distance, currentPage + 1);
     }
-  }, [loadingMore, hasMore, currentSearchArea, currentPage]);
+  }, [loadingMore, hasMore, currentSearchArea, currentPage, fetchLocationsInArea]);
 
   // Handle map instance
   const onLoad = useCallback((map: google.maps.Map) => {
