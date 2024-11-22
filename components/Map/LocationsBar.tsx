@@ -6,6 +6,7 @@ import { Star, Route } from 'lucide-react';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useRouteLocations } from '@/hooks/useRouteLocations';
 import { useToast } from '@/components/ui/toast';
+import {MarqueeText} from '@/components/ui/marquee-text';
 
 interface Location {
   id: string;
@@ -28,45 +29,6 @@ interface LocationsBarProps {
   selectedLocationId?: string | null;
   onLocationSelect: (location: Location) => void;
 }
-
-const MarqueeText: React.FC<{ text: string; isCardHovered: boolean }> = ({ text, isCardHovered }) => {
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const textRef = React.useRef<HTMLDivElement>(null);
-  const [isOverflowing, setIsOverflowing] = React.useState(false);
-  const isMobile = React.useMemo(() => window.innerWidth <= 768, []); // Mobile breakpoint
-  //const { routeLocations, toggleRouteLocation, isLoading: routesLoading, refreshRoute } = useRouteLocations();
-
-  React.useEffect(() => {
-    if (containerRef.current && textRef.current) {
-      setIsOverflowing(textRef.current.offsetWidth > containerRef.current.offsetWidth);
-    }
-  }, [text]);
-
-  const shouldAnimate = isOverflowing && (isMobile || isCardHovered);
-
-  const animationStyle = shouldAnimate ? {
-    transform: `translateX(${-1 * (textRef.current?.offsetWidth ?? 0)}px)`,
-    transition: 'transform 8s linear'
-  } : {
-    transform: 'translateX(0)',
-    transition: 'transform 0.5s linear'
-  };
-
-  return (
-    <div 
-      ref={containerRef}
-      className="relative overflow-hidden whitespace-nowrap"
-    >
-      <div
-        ref={textRef}
-        className="inline-block"
-        style={animationStyle}
-      >
-        {text}
-      </div>
-    </div>
-  );
-};
 
 const LocationsBar: React.FC<LocationsBarProps> = ({ 
   locations, 
@@ -162,7 +124,7 @@ const LocationsBar: React.FC<LocationsBarProps> = ({
             <Card 
               key={location.id} 
               className={`
-                w-80 flex-shrink-0 bg-white transition-all duration-300 overflow-hidden 
+                w-80 flex-shrink-0 bg-white transition-all duration-300 
                 hover:shadow-lg cursor-pointer relative
                 ${selectedLocationId === location.id 
                   ? 'ring-2 ring-green-600 shadow-lg' 
