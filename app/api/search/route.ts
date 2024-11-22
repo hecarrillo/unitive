@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
   try {
     const conditions = [
       // Add base condition for minimum review count and cast COUNT to integer
-      `(SELECT COUNT(*)::integer FROM "SiteReview" sr WHERE sr."locationId" = t.id) >= 5`
+      `(SELECT COUNT(*)::integer FROM "SiteReview" sr WHERE sr."locationId" = t.id) >= 4`
     ];
 
     if (!isNaN(latitude) && !isNaN(longitude)) {
