@@ -2,7 +2,7 @@ import React from 'react';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import { Star, Route } from 'lucide-react';
+import { Star, Plus, X } from 'lucide-react';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useRouteLocations } from '@/hooks/useRouteLocations';
 import { useToast } from '@/components/ui/toast';
@@ -147,21 +147,35 @@ const LocationsBar: React.FC<LocationsBarProps> = ({
                   }`}
                 />
               </button>
-              <div className="absolute top-11 right-2 z-10">
-                <button 
-                  onClick={(e) => handleRouteClick(e, location.id)}
-                  className="p-1 hover:bg-gray-100 rounded-full transition-colors bg-white/80 backdrop-blur-sm"
-                  //disabled={routesLoading}
-                >
-                  <Route 
-                    className={`w-5 h-5 ${
-                      optimisticRoutes.has(location.id)
-                        ? 'fill-blue-400 stroke-blue-400'
-                        : 'stroke-gray-400'
-                    } ${routesLoading ? 'opacity-50' : ''}`}
-                  />
-                </button>
-              </div>
+              <button 
+                onClick={(e) => handleRouteClick(e, location.id)}
+                className={`
+                  absolute top-11 right-2 px-2 py-1 
+                  rounded-full transition-all z-10 
+                  bg-white/80 backdrop-blur-sm
+                  flex items-center gap-1
+                  text-xs font-medium
+                  hover:bg-gray-100
+                  ${routesLoading ? 'opacity-50 cursor-not-allowed' : ''}
+                  ${optimisticRoutes.has(location.id) 
+                    ? 'text-blue-500 hover:text-blue-600' 
+                    : 'text-gray-500 hover:text-gray-600'
+                  }
+                `}
+                disabled={routesLoading}
+              >
+                {optimisticRoutes.has(location.id) ? (
+                  <>
+                    <X className="w-3 h-3" />
+                    <span>Remove</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-3 h-3" />
+                    <span>Add to route</span>
+                  </>
+                )}
+              </button>
               <CardContent className="p-3">
                 <div className="flex">
                   <div className="w-24 flex-shrink-0 mr-3">
