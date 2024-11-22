@@ -148,28 +148,7 @@ const MapLayout: FC = () => {
         })
       );
   
-      // // Process locations and fetch images
-      // const locationIds = locationData
-      //   .filter((location: Location) => location.image)
-      //   .map((location: Location) => location.id);
-  
       const processedLocations = locationData;
-  
-      // if (locationIds.length > 0) {
-      //   const imageResponse = await fetch('/api/locationImages', {
-      //     method: 'POST',
-      //     headers: { 'Content-Type': 'application/json' },
-      //     body: JSON.stringify({ locationIds }),
-      //   });
-  
-      //   if (imageResponse.ok) {
-      //     const images = await imageResponse.json();
-      //     processedLocations = processedLocations.map((location: Location) => ({
-      //       ...location,
-      //       image: images[location.id] || null
-      //     }));
-      //   }
-      // }
       
       setLocations(processedLocations);
       setHasMore(false);
@@ -239,28 +218,7 @@ const MapLayout: FC = () => {
         })
       );
   
-      // // Process locations and fetch images
-      // const locationIds = locationData
-      //   .filter((location: Location) => location.image)
-      //   .map((location: Location) => location.id);
-  
       const processedLocations = locationData;
-  
-      // if (locationIds.length > 0) {
-      //   const imageResponse = await fetch('/api/locationImages', {
-      //     method: 'POST',
-      //     headers: { 'Content-Type': 'application/json' },
-      //     body: JSON.stringify({ locationIds }),
-      //   });
-  
-      //   if (imageResponse.ok) {
-      //     const images = await imageResponse.json();
-      //     processedLocations = processedLocations.map((location: Location) => ({
-      //       ...location,
-      //       image: images[location.id] || null
-      //     }));
-      //   }
-      // }
   
       setLocations(processedLocations);
   
