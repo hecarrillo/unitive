@@ -4,10 +4,6 @@ const nextConfig = {
   images: {
     domains: ['es.wikipedia.org'],
   },
-  middleware: {
-    // Configure to use Edge Runtime
-    runtime: 'edge',
-  },
 };
 
 export default nextConfig;

@@ -1,9 +1,8 @@
 // middleware.ts
+import { type NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
-// Configure matcher
 export const config = {
   matcher: [
     /*
@@ -14,14 +13,12 @@ export const config = {
      */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
+  // Explicitly set runtime to nodejs
+  runtime: 'nodejs'
 };
 
 export async function middleware(request: NextRequest) {
-  const response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
+  let response = NextResponse.next();
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,10 +29,6 @@ export async function middleware(request: NextRequest) {
           return request.cookies.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
-          // If the cookie is being set with a specific path, remove it
-          if (options?.path) {
-            delete options.path;
-          }
           response.cookies.set({
             name,
             value,
@@ -43,10 +36,6 @@ export async function middleware(request: NextRequest) {
           });
         },
         remove(name: string, options: CookieOptions) {
-          // If the cookie is being removed with a specific path, remove it
-          if (options?.path) {
-            delete options.path;
-          }
           response.cookies.delete({
             name,
             ...options,
