@@ -26,22 +26,23 @@ export async function POST(request: Request) {
       if (!location.image) return null;
 
       try {
-        const response = await fetch(
-          `https://places.googleapis.com/v1/${location.image}/media?max_height_px=60`,
-          {
-            headers: {
-              'X-Goog-Api-Key': process.env.GOOGLE_API_KEY as string,
-            },
-          }
-        );
+        throw new Error('Not implemented');
+        // const response = await fetch(
+        //   `https://places.googleapis.com/v1/${location.image}/media?max_height_px=60`,
+        //   {
+        //     headers: {
+        //       'X-Goog-Api-Key': process.env.GOOGLE_API_KEY as string,
+        //     },
+        //   }
+        // );
 
-        if (response.ok) {
-          const buffer = await response.arrayBuffer();
-          if (buffer.byteLength == 0) throw new Error('No buffer returned');
-          const base64 = Buffer.from(buffer).toString('base64');
-          const mimeType = response.headers.get('content-type');
-          return { id: location.id, image: `data:${mimeType};base64,${base64}` };
-        }
+        // if (response.ok) {
+        //   const buffer = await response.arrayBuffer();
+        //   if (buffer.byteLength == 0) throw new Error('No buffer returned');
+        //   const base64 = Buffer.from(buffer).toString('base64');
+        //   const mimeType = response.headers.get('content-type');
+        //   return { id: location.id, image: `data:${mimeType};base64,${base64}` };
+        // }
       } catch (error) {
         console.error(`Error fetching image for location ${location.id}:`, error);
       }
@@ -51,11 +52,11 @@ export async function POST(request: Request) {
     const imageResults = await Promise.all(locations.map(fetchImage));
 
     const images: { [key: string]: string } = {};
-    imageResults.forEach(result => {
-      if (result) {
-        images[result.id] = result.image;
-      }
-    });
+    // imageResults.forEach(result => {
+    //   if (result) {
+    //     images[result.id] = result.image;
+    //   }
+    // });
 
     return NextResponse.json(images);
   } catch (error) {

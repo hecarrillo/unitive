@@ -7,28 +7,28 @@ import { withDatabase } from '@/middleware/database';
 export const dynamic = 'force-dynamic';
 
 const fetchLocationImage = async (imagePath: string | null, imgSize: number | null) => {
-  if (!imagePath) return null;
+  // if (!imagePath) return null;
 
-  try {
-    const response = await fetch(
-      `https://places.googleapis.com/v1/${imagePath}/media?max_height_px=${imgSize ?? 800}`, // Using larger image for modal
-      {
-        headers: {
-          'X-Goog-Api-Key': process.env.GOOGLE_API_KEY as string,
-        },
-      }
-    );
+  // try {
+  //   const response = await fetch(
+  //     `https://places.googleapis.com/v1/${imagePath}/media?max_height_px=${imgSize ?? 800}`, // Using larger image for modal
+  //     {
+  //       headers: {
+  //         'X-Goog-Api-Key': process.env.GOOGLE_API_KEY as string,
+  //       },
+  //     }
+  //   );
 
-    if (response.ok) {
-      const buffer = await response.arrayBuffer();
-      if (buffer.byteLength === 0) throw new Error('No buffer returned');
-      const base64 = Buffer.from(buffer).toString('base64');
-      const mimeType = response.headers.get('content-type');
-      return `data:${mimeType};base64,${base64}`;
-    }
-  } catch (error) {
-    console.error('Error fetching location image:', error);
-  }
+  //   if (response.ok) {
+  //     const buffer = await response.arrayBuffer();
+  //     if (buffer.byteLength === 0) throw new Error('No buffer returned');
+  //     const base64 = Buffer.from(buffer).toString('base64');
+  //     const mimeType = response.headers.get('content-type');
+  //     return `data:${mimeType};base64,${base64}`;
+  //   }
+  // } catch (error) {
+  //   console.error('Error fetching location image:', error);
+  // }
   return null;
 };
 
