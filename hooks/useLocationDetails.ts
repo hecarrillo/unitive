@@ -6,6 +6,7 @@ export interface LocationData {
   id: string;
   name: string;
   image: string | null;
+  thumbnailImage: string | null;
   summarizedReview: string | null;
   aspectRatings: { aspect: { name: string }; rating: number }[];
   siteReviews: { 

@@ -1,76 +1,76 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-export const useRouteLocations = () => {
-  const [routeLocations, setRouteLocations] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
+interface RouteLocation {
+  locationId: string;
+}
 
-  const fetchRouteLocations = useCallback(async () => {
-    try {
+export const useRoutes = () => {
+  const queryClient = useQueryClient();
+
+  // Query for fetching favorites
+  const { data: routeLocations = new Set(), isLoading } = useQuery({
+    queryKey: ['routes'],
+    queryFn: async () => {
       const response = await fetch('/api/routes');
-      if (!response.ok) throw new Error('Failed to fetch route locations');
-      const data = await response.json();
-      setRouteLocations(data.map((route: { locationId: string }) => route.locationId));
-    } catch (error) {
-      console.error('Error fetching route locations:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      const data: RouteLocation[] = await response.json();
+      return new Set(data.map(fav => fav.locationId));
+    },
+    staleTime: 1000 * 60 * 5, // Consider data fresh for 5 minutes
+  });
 
-  const toggleRouteLocation = async (locationId: string) => {
-    setIsLoading(true);
-    try {
-      if (routeLocations.includes(locationId)) {
-        // Remove from route
-        const response = await fetch('/api/routes', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ locationId }),
-        });
+  // Mutation for toggling favorites
+  const { mutate: toggleRoutes } = useMutation({
+    mutationFn: async (locationId: string) => {
+      const isRoute = routeLocations.has(locationId);
+      const response = await fetch('/api/routes', {
+        method: isRoute ? 'DELETE' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ locationId }),
+      });
 
-        if (!response.ok) throw new Error('Failed to remove from route');
-      } else {
-        // Add to route
-        const response = await fetch('/api/routes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ locationId }),
-        });
-
-        if (!response.ok) throw new Error('Failed to add to route');
+      if (!response.ok) {
+        throw new Error('Failed to toggle route');
       }
 
-      // Update local state immediately
-      setRouteLocations(prev => 
-        prev.includes(locationId) 
-          ? prev.filter(id => id !== locationId)
-          : [...prev, locationId]
-      );
+      return { locationId, isRoute };
+    },
+    // Optimistic update
+    onMutate: async (locationId) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['routes'] });
 
-      // Fetch updated route locations
-      await fetchRouteLocations();
-      router.refresh();
-    } catch (error) {
-      console.error('Error toggling route location:', error);
-      // Revert local state on error
-      await fetchRouteLocations();
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      // Snapshot the previous value
+      const previousRoutes = queryClient.getQueryData(['routes']);
 
-  // Initial fetch
-  useEffect(() => {
-    fetchRouteLocations();
-  }, [fetchRouteLocations]);
+      // Optimistically update to the new value
+      queryClient.setQueryData(['routes'], (old: Set<string>) => {
+        const updated = new Set(old);
+        if (updated.has(locationId)) {
+          updated.delete(locationId);
+        } else {
+          updated.add(locationId);
+        }
+        return updated;
+      });
+
+      // Return a context object with the snapshotted value
+      return { previousRoutes };
+    },
+    // If mutation fails, use the context returned from onMutate to roll back
+    onError: (err, locationId, context) => {
+      queryClient.setQueryData(['routes'], context?.previousRoutes);
+    },
+    // Always refetch after error or success
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['routes'] });
+    },
+  });
 
   return {
     routeLocations,
-    toggleRouteLocation,
+    toggleRoutes,
     isLoading,
-    hasRoute: routeLocations.length >= 2,
-    refreshRoute: fetchRouteLocations
   };
 };

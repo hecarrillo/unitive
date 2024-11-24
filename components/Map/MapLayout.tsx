@@ -5,6 +5,8 @@ import { GoogleMap, Marker, useLoadScript, DirectionsRenderer } from '@react-goo
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useFavorites } from '@/hooks/useFavorites';
+import { useRoutes } from '@/hooks/useRouteLocations';
 import LocationDetailModal from './LocationDetailModal';
 import Loading from '../utils/Loading';
 import LocationsBar from './LocationsBar';
@@ -13,7 +15,7 @@ import { PersonStanding } from 'lucide-react';
 import { MessageSquarePlus } from 'lucide-react';
 import { fitMapToMexicoCity, shouldZoomToCity } from '@/lib/map-utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-
+import { set } from 'zod';
 
 interface LatLng {
   lat: number;
@@ -45,15 +47,6 @@ const defaultCenter: LatLng = {
   lat: 19.4326,
   lng: -99.1332,
 };
-
-// const getMarkerIcon = (isHovered: boolean, isSelected: boolean) => ({
-//   path: google.maps.SymbolPath.CIRCLE,
-//   fillColor: isHovered ? '#ef4444' : '#00e600',
-//   fillOpacity: 1,
-//   strokeWeight: isHovered ? 3 : 1,
-//   strokeColor: isHovered ? '#ef4444' : '#000000',
-//   scale: isHovered ? 10 : (isSelected ? 9 : 7),
-// });
 
 const getMarkerIcon = (isHovered: boolean, isSelected: boolean, order?: string) => {
   if (order !== undefined) {
@@ -99,7 +92,7 @@ const MapLayout: FC = () => {
   const [center, setCenter] = useState<LatLng>(defaultCenter);
   const [selectedPlace, setSelectedPlace] = useState<Location | null>(null);
   const [hoveredPlace, setHoveredPlace] = useState<string | null>(null);
-  const [zoom, setZoom] = useState<number>(16);
+  const [zoom, setZoom] = useState<number>(14);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -107,6 +100,8 @@ const MapLayout: FC = () => {
   const [mapInstance, setMapInstance] = useState<google.maps.Map | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [previousZoom, setPreviousZoom] = useState<number>(12);
+  const { favoriteLocations, toggleFavorite, isLoading: favoritesLoading } = useFavorites();
+  const { routeLocations, toggleRoutes, isLoading: routesLoading } = useRoutes();
   const [previousCenter, setPreviousCenter] = useState<LatLng>(defaultCenter);
   const [userLocation, setUserLocation] = useState<LatLng | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
@@ -123,76 +118,99 @@ const MapLayout: FC = () => {
     radius: number | null;
   } | null>(null);
 
-  const loadFavoriteLocations = async () => {
+  const loadFavoriteLocations = useCallback(async () => {
     try {
       setCurrentMode('favorites');
       setIsLoadingNewArea(true);
       setLoading(true);
   
-      // Fetch favorite location IDs
-      const favResponse = await fetch('/api/favorites');
-      const favData = await favResponse.json();
-      const favoriteIds = favData.map((fav: { locationId: string }) => fav.locationId);
+      const favoriteIds = Array.from(favoriteLocations);
   
       if (favoriteIds.length === 0) {
+        console.log('No favorite locations found');
         setLocations([]);
         setHasMore(false);
         return;
       }
   
-      // Fetch full location details for favorites using individual API calls
-      const locationData = await Promise.all(
-        favoriteIds.map(async (locationId: string) => {
-          const locResponse = await fetch(`/api/location/${locationId}`);
-          if (!locResponse.ok) throw new Error(`Failed to fetch location ${locationId}`);
-          return await locResponse.json();
-        })
-      );
-  
-      const processedLocations = locationData;
+      const locResponse = await fetch('/api/locations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ locationIds: favoriteIds })
+      });
       
+      if (!locResponse.ok) {
+        throw new Error('Failed to fetch locations');
+      }
+      
+      const locationData = await locResponse.json();
+  
+      const processedLocations: Location [] = locationData;
+  
       setLocations(processedLocations);
       setHasMore(false);
   
-      // First zoom to Mexico City
+      // Map fitting functions
+      const fitMapToLocations = (locations: Location[]) => {
+        if (!mapInstance || locations.length === 0) return;
+  
+        const bounds = new google.maps.LatLngBounds();
+        locations.forEach((location) => {
+          if (location.latitude && location.longitude) {
+            bounds.extend({ 
+              lat: location.latitude, 
+              lng: location.longitude 
+            });
+          }
+        });
+        
+        mapInstance.fitBounds(bounds);
+        
+        // Adjust zoom for single location
+        if (locations.length === 1) {
+          mapInstance.setZoom(14);
+        }
+      };
+  
       if (mapInstance) {
+        // First fit to Mexico City
         fitMapToMexicoCity(mapInstance);
         
-        // Then, after a slight delay, fit to the location markers if there are any
+        // Then fit to locations after delay
         if (processedLocations.length > 0) {
           setTimeout(() => {
-            const bounds = new google.maps.LatLngBounds();
-            processedLocations.forEach((location) => {
-              bounds.extend({ 
-                lat: location.latitude, 
-                lng: location.longitude 
-              });
-            });
-            mapInstance.fitBounds(bounds);
-            
-            // Ensure we don't zoom in too much for single locations
-            if (processedLocations.length === 1) {
-              mapInstance.setZoom(14);
-            }
-          }, 1000); // 1 second delay for smooth transition
+            fitMapToLocations(processedLocations);
+          }, 1000);
         }
       }
-
-      // Clear any active filters or search areas
+  
+      // Reset other states
       setActiveFilters(null);
       setCurrentSearchArea(null);
       setHasMovedMap(false);
   
     } catch (error) {
-      console.error('Error loading favorite locations:', error);
+      console.error('Error in loadFavoriteLocations:', error);
       setError('Failed to load favorite locations');
     } finally {
       setLoading(false);
       setIsLoadingNewArea(false);
     }
-  };
+  }, [
+    favoriteLocations, 
+    mapInstance, 
+    setLocations, 
+    setHasMore, 
+    setLoading, 
+    setActiveFilters, 
+    setCurrentSearchArea, 
+    setHasMovedMap, 
+    setError
+  ]);
 
-  const loadRouteLocations = async () => {
+  const loadRouteLocations = useCallback(async () => {
     try {
       setCurrentMode('route');
       setIsLoadingNewArea(true);
@@ -200,26 +218,29 @@ const MapLayout: FC = () => {
       setIsCalculatingRoute(true);
       setDirectionsResult(null);
   
-      const favResponse = await fetch('/api/routes');
-      const favData = await favResponse.json();
-      const favoriteIds = favData.map((fav: { locationId: string }) => fav.locationId);
+      const routeIds = Array.from(routeLocations);
   
-      if (favoriteIds.length === 0) {
+      if (routeIds.length === 0) {
         setLocations([]);
         setHasMore(false);
         return;
       }
   
-      // Fetch location details
-      const locationData = await Promise.all(
-        favoriteIds.map(async (locationId: string) => {
-          const locResponse = await fetch(`/api/location/${locationId}`);
-          if (!locResponse.ok) throw new Error(`Failed to fetch location ${locationId}`);
-          return await locResponse.json();
-        })
-      );
+      const locResponse = await fetch('/api/locations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ locationIds: routeIds })
+      });
+      
+      if (!locResponse.ok) {
+        throw new Error('Failed to fetch locations');
+      }
+      
+      const locationData = await locResponse.json();
   
-      const processedLocations = locationData;
+      const processedLocations: Location [] = locationData;
   
       setLocations(processedLocations);
   
@@ -298,13 +319,24 @@ const MapLayout: FC = () => {
       setIsLoadingNewArea(false);
       setIsCalculatingRoute(false);
     }
-  };
+  }
+    , [
+      routeLocations, 
+      mapInstance, 
+      setLocations, 
+      setHasMore, 
+      setLoading, 
+      setActiveFilters, 
+      setCurrentSearchArea, 
+      setHasMovedMap, 
+      setError
+    ]);
   
   const handleReturnToMyLocation = useCallback(() => {
     if (!mapInstance || !userLocation) return;
     
     mapInstance.panTo(userLocation);
-    mapInstance.setZoom(14); // or whatever your preferred default zoom is
+    mapInstance.setZoom(15); // or whatever your preferred default zoom is
   }, [mapInstance, userLocation]);  
 
   const handleFiltersChange = useCallback(async (filters: {
@@ -352,7 +384,7 @@ const MapLayout: FC = () => {
       if (!response.ok) throw new Error('Failed to fetch locations');
       
       const data: ApiResponse = await response.json();
-      let processedLocations = data.locations;
+      const processedLocations = data.locations;
   
       setLocations(processedLocations);
       setHasMore(data.page * data.perPage < data.total);
@@ -554,7 +586,7 @@ const MapLayout: FC = () => {
       return () => {
           window.removeEventListener(LOAD_FAVORITES_EVENT, handleLoadFavorites);
       };
-  }, []);
+  }, [loadFavoriteLocations]);
 
   useEffect(() => {
     const handleLoadRoute = () => {
@@ -566,7 +598,7 @@ const MapLayout: FC = () => {
     return () => {
         window.removeEventListener(LOAD_ROUTES_EVENT, handleLoadRoute);
     };
-  }, []);
+  }, [loadRouteLocations]);
 
   const returnToNormalMode = useCallback(async () => {
     setCurrentMode('normal');

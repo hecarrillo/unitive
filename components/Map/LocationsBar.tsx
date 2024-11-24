@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Star, Plus, X } from 'lucide-react';
 import { useFavorites } from '@/hooks/useFavorites';
-import { useRouteLocations } from '@/hooks/useRouteLocations';
+import { useRoutes } from '@/hooks/useRouteLocations';
 import { useToast } from '@/components/ui/toast';
 import { MarqueeText } from '@/components/ui/marquee-text';
 
@@ -52,76 +52,17 @@ const LocationsBar: React.FC<LocationsBarProps> = ({
   onLocationSelect 
 }) => {
   const { favoriteLocations, toggleFavorite, isLoading: favoritesLoading } = useFavorites();
-  const [ optimisticFavorites, setOptimisticFavorites ] = React.useState<Set<string>>(new Set());
-  const { routeLocations, toggleRouteLocation, isLoading: routesLoading, refreshRoute } = useRouteLocations();
+  const { routeLocations, toggleRoutes, isLoading: routesLoading } = useRoutes();
   const [hoveredCardId, setHoveredCardId] = React.useState<string | null>(null);
-  const [optimisticRoutes, setOptimisticRoutes] = React.useState<Set<string>>(new Set());
-  const { toast } = useToast();
-
-  React.useEffect(() => {
-    setOptimisticFavorites(new Set(favoriteLocations));
-  }, [favoriteLocations]);
-  React.useEffect(() => {
-    setOptimisticRoutes(new Set(routeLocations));
-  }, [routeLocations]);
 
   const handleFavoriteClick = async (e: React.MouseEvent, locationId: string) => {
     e.stopPropagation();
-    
-    setOptimisticFavorites(prev => {
-      const next = new Set(prev);
-      if (next.has(locationId)) {
-        next.delete(locationId);
-      } else {
-        next.add(locationId);
-      }
-      return next;
-    });
-
     await toggleFavorite(locationId);
   };
 
   const handleRouteClick = async (e: React.MouseEvent, locationId: string) => {
     e.stopPropagation();
-    
-    if (routesLoading) {
-      return;
-    }
-
-    try {
-      // Update optimistic state first
-      const isAdding = !optimisticRoutes.has(locationId);
-      setOptimisticRoutes(prev => {
-        const next = new Set(prev);
-        if (next.has(locationId)) {
-          next.delete(locationId);
-        } else {
-          next.add(locationId);
-        }
-        return next;
-      });
-
-      await toggleRouteLocation(locationId);
-      const location = locations.find(loc => loc.id === locationId);
-      
-      toast({
-        title: isAdding ? "Added to route" : "Removed from route",
-        description: location?.name,
-        duration: 2000,
-      });
-
-      // Ensure route data is fresh
-      await refreshRoute();
-    } catch (error) {
-      // Revert optimistic update on error
-      setOptimisticRoutes(new Set(routeLocations));
-      toast({
-        title: "Error updating route",
-        description: "Please try again",
-        variant: "destructive",
-        duration: 2000,
-      });
-    }
+    await toggleRoutes(locationId);
   };
 
   const handleCardHover = (locationId: string | null) => {
@@ -154,7 +95,7 @@ const LocationsBar: React.FC<LocationsBarProps> = ({
               >
                 <Star 
                   className={`w-5 h-5 ${
-                    optimisticFavorites.has(location.id)
+                    favoriteLocations.has(location.id)
                       ? 'fill-yellow-400 stroke-yellow-400'
                       : 'stroke-gray-400'
                   }`}
@@ -170,14 +111,14 @@ const LocationsBar: React.FC<LocationsBarProps> = ({
                   text-xs font-medium
                   hover:bg-gray-100
                   ${routesLoading ? 'opacity-50 cursor-not-allowed' : ''}
-                  ${optimisticRoutes.has(location.id) 
+                  ${routeLocations.has(location.id) 
                     ? 'text-blue-500 hover:text-blue-600' 
                     : 'text-gray-500 hover:text-gray-600'
                   }
                 `}
                 disabled={routesLoading}
               >
-                {optimisticRoutes.has(location.id) ? (
+                {routeLocations.has(location.id) ? (
                   <>
                     <X className="w-3 h-3" />
                     <span>Remove from route</span>
@@ -204,13 +145,7 @@ const LocationsBar: React.FC<LocationsBarProps> = ({
                           placeholder="blur"
                         />
                       ) : (
-                        <Image
-                          src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDABQODxIPDRQSEBIXFRQdHx4eHRoaHSQsJCgkLDY2NDAwNjZBPUA9QTY2QUFCNkY3REVHSUtJS0E3Oz5PRkdLS0v/2wBDAR"
-                          alt={location.name}
-                          width={120}
-                          height={120}
-                          className="object-cover w-full h-full"
-                        />                      
+                        <div className="w-full h-full bg-gray-200 rounded-lg animate-pulse" />                     
                       )}
                     </div>
                   </div>

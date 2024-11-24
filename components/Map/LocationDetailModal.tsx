@@ -1,8 +1,9 @@
 import React from 'react';
 import Image from 'next/image';
-import { X, Star } from 'lucide-react';
+import { X, Star, Route } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useFavorites } from '@/hooks/useFavorites';
+import { useRoutes } from '@/hooks/useRouteLocations';
 import ReviewSection from './ReviewSection';
 import { useLocationDetails } from '@/hooks/useLocationDetails';
 
@@ -31,26 +32,16 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
 }) => {
   const { locationData, isLoading, error, invalidateLocationData } = useLocationDetails(locationId);
   const { favoriteLocations, toggleFavorite } = useFavorites();
-  const [optimisticFavorites, setOptimisticFavorites] = React.useState<Set<string>>(new Set());
-
-  React.useEffect(() => {
-    setOptimisticFavorites(new Set(favoriteLocations));
-  }, [favoriteLocations]);
+  const { routeLocations, toggleRoutes } = useRoutes();
 
   const handleFavoriteClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    
-    setOptimisticFavorites(prev => {
-      const next = new Set(prev);
-      if (next.has(locationId)) {
-        next.delete(locationId);
-      } else {
-        next.add(locationId);
-      }
-      return next;
-    });
-
     await toggleFavorite(locationId);
+  };
+
+  const handleRouteClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await toggleRoutes(locationId);
   };
 
   const handleReviewSubmitted = () => {
@@ -82,8 +73,20 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
         >
           <Star 
             className={`w-5 h-5 ${
-              optimisticFavorites.has(locationId)
+              favoriteLocations.has(locationId)
                 ? 'fill-yellow-400 stroke-yellow-400'
+                : 'stroke-white'
+            }`}
+          />
+        </button>
+        <button
+          onClick={handleRouteClick}
+          className="p-2 bg-black/50 rounded-full hover:bg-black/70 transition-colors"
+        >
+          <Route 
+            className={`w-5 h-5 ${
+              routeLocations.has(locationId)
+                ? 'fill-white-400 stroke-blue-400'
                 : 'stroke-white'
             }`}
           />
