@@ -765,6 +765,7 @@ const MapLayout: FC = () => {
             streetViewControl: false,
             mapTypeControl: false,
             fullscreenControl: false,
+            gestureHandling: 'greedy', 
             styles: [
               {
                 featureType: "poi",
