@@ -4,22 +4,7 @@ import { X, Star } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useFavorites } from '@/hooks/useFavorites';
 import ReviewSection from './ReviewSection';
-import { useSupabase } from '@/app/supabase-provider';
-
-interface LocationData {
-  id: string;
-  name: string;
-  image: string | null;
-  summarizedReview: string | null;
-  aspectRatings: { aspect: { name: string }; rating: number }[];
-  siteReviews: { 
-    id: string;
-    rating: number; 
-    body: string; 
-    extractedDate: string;
-    userId: string | null;
-  }[];
-}
+import { useLocationDetails } from '@/hooks/useLocationDetails';
 
 interface LocationDetailModalProps {
   isOpen: boolean;
@@ -29,12 +14,12 @@ interface LocationDetailModalProps {
 
 const isImageSrcValid = (src: string) => {
   const urlPattern = new RegExp(
-    "^(https?:\\/\\/)?" + // protocol
-    "((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.?)+[a-z]{2,}|" + // domain name
-    "((\\d{1,3}\\.){3}\\d{1,3}))" + // OR ip (v4) address
-    "(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*" + // port and path
-    "(\\?[;&a-z\\d%_.~+=-]*)?" + // query string
-    "(\\#[-a-z\\d_]*)?$", "i" // fragment locator
+    "^(https?:\\/\\/)?" +
+    "((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.?)+[a-z]{2,}|" +
+    "((\\d{1,3}\\.){3}\\d{1,3}))" +
+    "(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*" +
+    "(\\?[;&a-z\\d%_.~+=-]*)?" +
+    "(\\#[-a-z\\d_]*)?$", "i"
   );
   return !!urlPattern.test(src);
 };
@@ -44,57 +29,13 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
   onClose,
   locationId,
 }) => {
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
-  const [locationData, setLocationData] = React.useState<LocationData>();
-  const [userReview, setUserReview] = React.useState<{
-    id: string;
-    rating: number;
-    body: string;
-  } | null>(null);
-  
+  const { locationData, isLoading, error, invalidateLocationData } = useLocationDetails(locationId);
   const { favoriteLocations, toggleFavorite } = useFavorites();
   const [optimisticFavorites, setOptimisticFavorites] = React.useState<Set<string>>(new Set());
-  const { supabase } = useSupabase();
-
-  const fetchLocationDetails = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/location/${locationId}`);
-      if (!response.ok) throw new Error('Failed to fetch location details');
-      const data = await response.json();
-      setLocationData(data);
-
-      // Find user review
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const userReview: { id: string; rating: number; body: string } | undefined = data.siteReviews.find((review: { userId: string | null }) => review.userId === user.id);
-        if (userReview) {
-          setUserReview({
-            id: userReview.id,
-            rating: userReview.rating,
-            body: userReview.body
-          });
-        } else {
-          setUserReview(null);
-        }
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   React.useEffect(() => {
     setOptimisticFavorites(new Set(favoriteLocations));
   }, [favoriteLocations]);
-
-  React.useEffect(() => {
-    if (isOpen && locationId) {
-      fetchLocationDetails();
-    }
-  }, [isOpen, locationId]);
 
   const handleFavoriteClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -113,7 +54,7 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
   };
 
   const handleReviewSubmitted = () => {
-    fetchLocationDetails();
+    invalidateLocationData();
   };
 
   const renderRatingStars = (rating: number) => {
@@ -129,7 +70,7 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
     ));
   };
 
-  if (!isOpen) return null;
+  if (!isOpen) return null; 
 
   return (
     <div className="h-full flex flex-col">
@@ -155,13 +96,13 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
         </button>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600" />
         </div>
       ) : error ? (
         <div className="flex-1 p-4 flex items-center justify-center text-red-500">
-          {error}
+          {error.message}
         </div>
       ) : locationData ? (
         <div className="h-full flex flex-col">
@@ -197,7 +138,7 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
               <ReviewSection 
                 locationId={locationId}
                 onReviewSubmitted={handleReviewSubmitted}
-                userReview={userReview}
+                userReview={locationData?.userReview}
               />
 
               {/* Aspect ratings */}

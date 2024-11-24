@@ -53,14 +53,20 @@ interface FilterConfirmation {
   };
 }
 
-const areFiltersActive = (
-  searchTerm: string, 
-  selectedCategories: number[], 
-  selectedAspects: number[]
-): boolean => {
-  return searchTerm.trim() !== '' || 
-    selectedCategories.length > 0 || 
-    selectedAspects.length > 0;
+const STORAGE_KEYS = {
+  CATEGORIES: 'filter_categories',
+  ASPECTS: 'filter_aspects'
+};
+
+const loadFromSession = <T,>(key: string): T | null => {
+  if (typeof window === 'undefined') return null;
+  const item = sessionStorage.getItem(key);
+  return item ? JSON.parse(item) : null;
+};
+
+const saveToSession = <T,>(key: string, data: T): void => {
+  if (typeof window === 'undefined') return;
+  sessionStorage.setItem(key, JSON.stringify(data));
 };
 
 export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: SearchHeaderProps) {
@@ -94,10 +100,23 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
   });
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchFiltersData = async () => {
       setIsLoading(true);
       setError(null);
+
       try {
+        // Check sessionStorage first
+        const cachedCategories = loadFromSession<Category[]>(STORAGE_KEYS.CATEGORIES);
+        const cachedAspects = loadFromSession<Aspect[]>(STORAGE_KEYS.ASPECTS);
+
+        if (cachedCategories && cachedAspects) {
+          setCategories(cachedCategories);
+          setAspects(cachedAspects);
+          setIsLoading(false);
+          return;
+        }
+
+        // If no cached data, fetch from API
         const [categoriesResponse, aspectsResponse] = await Promise.all([
           fetch('/api/categories'),
           fetch('/api/aspects')
@@ -110,8 +129,14 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
         const categoriesData = await categoriesResponse.json();
         const aspectsData = await aspectsResponse.json();
 
+        // Update state
         setCategories(categoriesData);
         setAspects(aspectsData);
+
+        // Cache in sessionStorage
+        saveToSession(STORAGE_KEYS.CATEGORIES, categoriesData);
+        saveToSession(STORAGE_KEYS.ASPECTS, aspectsData);
+
       } catch (err) {
         setError('Failed to load filters');
         console.error('Error fetching data:', err);
@@ -120,7 +145,7 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
       }
     };
 
-    fetchData();
+    fetchFiltersData();
   }, []);
 
   const handleSearch = () => {

@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import SupabaseProvider from './supabase-provider'
+import { QueryProvider } from './query-provider'
 import { FilterProvider } from './contexts/FilterContext'
 import NavBar from '../components/NavBar/NavBar'
 import Register from '@/components/supaauth/register';
 import { ToastStateProvider, Toaster } from "@/components/ui/toast"
 import { Analytics } from "@vercel/analytics/react"
 import "./globals.css";
+
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -34,6 +36,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <QueryProvider>
         <SupabaseProvider>
           <Register/>
           <NavBar/>
@@ -45,6 +48,7 @@ export default function RootLayout({
           <Toaster />
           </ToastStateProvider>
         </SupabaseProvider>
+        </QueryProvider>
       </body>
     </html>
   );
