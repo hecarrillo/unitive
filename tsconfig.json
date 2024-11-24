@@ -23,12 +23,16 @@
       "@/*": ["./*"]
     }
   },
+  "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node"
+  },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
     "types/**/*.d.ts"
-  ],
+, "scripts/migrate-images.js"  ],
   "exclude": ["node_modules"]
 }

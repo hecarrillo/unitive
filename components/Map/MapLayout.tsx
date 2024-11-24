@@ -24,6 +24,7 @@ interface Location {
   id: string;
   name: string;
   image: string | null;
+  thumbnailImage: string | null;
   latitude: number;
   longitude: number;
   summarizedReview: string | null;
@@ -142,7 +143,7 @@ const MapLayout: FC = () => {
       // Fetch full location details for favorites using individual API calls
       const locationData = await Promise.all(
         favoriteIds.map(async (locationId: string) => {
-          const locResponse = await fetch(`/api/location/${locationId}?imgSize=90`);
+          const locResponse = await fetch(`/api/location/${locationId}`);
           if (!locResponse.ok) throw new Error(`Failed to fetch location ${locationId}`);
           return await locResponse.json();
         })
@@ -212,7 +213,7 @@ const MapLayout: FC = () => {
       // Fetch location details
       const locationData = await Promise.all(
         favoriteIds.map(async (locationId: string) => {
-          const locResponse = await fetch(`/api/location/${locationId}?imgSize=90`);
+          const locResponse = await fetch(`/api/location/${locationId}`);
           if (!locResponse.ok) throw new Error(`Failed to fetch location ${locationId}`);
           return await locResponse.json();
         })
@@ -352,27 +353,6 @@ const MapLayout: FC = () => {
       
       const data: ApiResponse = await response.json();
       let processedLocations = data.locations;
-      
-      // Process images
-      const locationIds = processedLocations
-        .filter(location => location.image)
-        .map(location => location.id);
-      
-      if (locationIds.length > 0) {
-        const imageResponse = await fetch('/api/locationImages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ locationIds }),
-        });
-  
-        if (imageResponse.ok) {
-          const images = await imageResponse.json();
-          processedLocations = processedLocations.map(location => ({
-            ...location,
-            image: images[location.id] || null
-          }));
-        }
-      }
   
       setLocations(processedLocations);
       setHasMore(data.page * data.perPage < data.total);
@@ -437,35 +417,12 @@ const MapLayout: FC = () => {
       if (!response.ok) throw new Error('Failed to fetch locations');
       
       const data = await response.json();
-      
-      // Process locations and fetch images
-      const locationIds = data.locations
-        .filter((location: Location) => location.image)
-        .map((location: Location) => location.id);
-      
-      let processedLocations = data.locations;
-      
-      if (locationIds.length > 0) {
-        const imageResponse = await fetch('/api/locationImages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ locationIds }),
-        });
-
-        if (imageResponse.ok) {
-          const images = await imageResponse.json();
-          processedLocations = processedLocations.map((location: Location) => ({
-            ...location,
-            image: images[location.id] || null
-          }));
-        }
-      }
 
       if (isInitialLoad) {
-        setLocations(processedLocations);
+        setLocations(data.locations);
         setInitialDataLoaded(true); // Add this line
       } else {
-        setLocations(prev => [...prev, ...processedLocations]);
+        setLocations(prev => [...prev, ...data.locations]);
       }
       
       setHasMore(page * data.perPage < data.total);

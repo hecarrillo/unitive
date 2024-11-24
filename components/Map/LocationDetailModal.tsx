@@ -27,6 +27,18 @@ interface LocationDetailModalProps {
   locationId: string;
 }
 
+const isImageSrcValid = (src: string) => {
+  const urlPattern = new RegExp(
+    "^(https?:\\/\\/)?" + // protocol
+    "((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.?)+[a-z]{2,}|" + // domain name
+    "((\\d{1,3}\\.){3}\\d{1,3}))" + // OR ip (v4) address
+    "(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*" + // port and path
+    "(\\?[;&a-z\\d%_.~+=-]*)?" + // query string
+    "(\\#[-a-z\\d_]*)?$", "i" // fragment locator
+  );
+  return !!urlPattern.test(src);
+};
+
 const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
   isOpen,
   onClose,
@@ -155,18 +167,18 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
         <div className="h-full flex flex-col">
           {/* Image Header - Fixed height */}
           <div className="relative h-64 w-full flex-shrink-0">
-            {locationData.image ? (
+            {locationData.image && isImageSrcValid(locationData.image) ? (
               <Image
                 src={locationData.image}
                 alt={locationData.name}
                 fill
                 className="object-cover"
+                blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDABQODxIPDRQSEBIXFRQdHx4eHRoaHSQsJCgkLDY2NDAwNjZBPUA9QTY2QUFCNkY3REVHSUtJS0E3Oz5PRkdLS0v/2wBDAR"
+                placeholder="blur"
                 priority
               />
             ) : (
-              <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                <span className="text-gray-400">No image available</span>
-              </div>
+              <div className="w-full h-full bg-gray-200 rounded-lg animate-pulse" />
             )}
           </div>
 

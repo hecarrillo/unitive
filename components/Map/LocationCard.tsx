@@ -9,6 +9,7 @@ interface Location {
   id: string;
   name: string;
   image: string | null;
+  thumbnailImage: string | null;
   latitude: number;
   longitude: number;
   summarizedReview: string | null;
@@ -57,9 +58,9 @@ const LocationCard: React.FC<LocationCardProps> = ({ location, onClose }) => {
       </CardHeader>
       <CardContent>
         <div className="w-full h-40 mb-4">
-          {location.image && isImageSrcValid(location.image) ? (
+          {location.thumbnailImage && isImageSrcValid(location.thumbnailImage) ? (
             <Image 
-              src={location.image} 
+              src={location.thumbnailImage} 
               alt={location.name} 
               fill 
               className="w-full h-full object-cover rounded-md" 

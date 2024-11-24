@@ -7,7 +7,9 @@
     "build": "next build",
     "postinstall": "prisma generate",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "migrate-images": "node scripts/migrate-images.js",
+    "generate-thumbnails": "node scripts/generate-thumbnails.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -33,6 +35,7 @@
     "@vercel/analytics": "^1.4.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "dotenv": "^16.4.5",
     "framer-motion": "^11.11.1",
     "input-otp": "^1.2.4",
     "lucide-react": "^0.445.0",

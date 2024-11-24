@@ -6,12 +6,13 @@ import { Star, Plus, X } from 'lucide-react';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useRouteLocations } from '@/hooks/useRouteLocations';
 import { useToast } from '@/components/ui/toast';
-import {MarqueeText} from '@/components/ui/marquee-text';
+import { MarqueeText } from '@/components/ui/marquee-text';
 
 interface Location {
   id: string;
   name: string;
   image: string | null;
+  thumbnailImage: string | null;
   latitude: number;
   longitude: number;
   summarizedReview: string | null;
@@ -30,6 +31,18 @@ interface LocationsBarProps {
   onLocationSelect: (location: Location) => void;
 }
 
+const isImageSrcValid = (src: string) => {
+  const urlPattern = new RegExp(
+    "^(https?:\\/\\/)?" + // protocol
+    "((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.?)+[a-z]{2,}|" + // domain name
+    "((\\d{1,3}\\.){3}\\d{1,3}))" + // OR ip (v4) address
+    "(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*" + // port and path
+    "(\\?[;&a-z\\d%_.~+=-]*)?" + // query string
+    "(\\#[-a-z\\d_]*)?$", "i" // fragment locator
+  );
+  return !!urlPattern.test(src);
+};
+
 const LocationsBar: React.FC<LocationsBarProps> = ({ 
   locations, 
   onScroll, 
@@ -39,7 +52,7 @@ const LocationsBar: React.FC<LocationsBarProps> = ({
   onLocationSelect 
 }) => {
   const { favoriteLocations, toggleFavorite, isLoading: favoritesLoading } = useFavorites();
-  const [optimisticFavorites, setOptimisticFavorites] = React.useState<Set<string>>(new Set());
+  const [ optimisticFavorites, setOptimisticFavorites ] = React.useState<Set<string>>(new Set());
   const { routeLocations, toggleRouteLocation, isLoading: routesLoading, refreshRoute } = useRouteLocations();
   const [hoveredCardId, setHoveredCardId] = React.useState<string | null>(null);
   const [optimisticRoutes, setOptimisticRoutes] = React.useState<Set<string>>(new Set());
@@ -167,7 +180,7 @@ const LocationsBar: React.FC<LocationsBarProps> = ({
                 {optimisticRoutes.has(location.id) ? (
                   <>
                     <X className="w-3 h-3" />
-                    <span>Remove</span>
+                    <span>Remove from route</span>
                   </>
                 ) : (
                   <>
@@ -180,18 +193,24 @@ const LocationsBar: React.FC<LocationsBarProps> = ({
                 <div className="flex">
                   <div className="w-24 flex-shrink-0 mr-3">
                     <div className="aspect-square rounded-lg overflow-hidden">
-                      {location.image ? (
+                      {location.thumbnailImage && isImageSrcValid(location.thumbnailImage) ? (
                         <Image
-                          src={location.image}
+                          src={location.thumbnailImage}
                           alt={location.name}
                           width={120}
                           height={120}
                           className="object-cover w-full h-full"
+                          blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDABQODxIPDRQSEBIXFRQdHx4eHRoaHSQsJCgkLDY2NDAwNjZBPUA9QTY2QUFCNkY3REVHSUtJS0E3Oz5PRkdLS0v/2wBDAR"
+                          placeholder="blur"
                         />
                       ) : (
-                        <div className="w-full h-full bg-gray-200 flex items-center justify-center text-sm">
-                          No image
-                        </div>
+                        <Image
+                          src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDABQODxIPDRQSEBIXFRQdHx4eHRoaHSQsJCgkLDY2NDAwNjZBPUA9QTY2QUFCNkY3REVHSUtJS0E3Oz5PRkdLS0v/2wBDAR"
+                          alt={location.name}
+                          width={120}
+                          height={120}
+                          className="object-cover w-full h-full"
+                        />                      
                       )}
                     </div>
                   </div>
