@@ -42,29 +42,29 @@ export function isCurrentlyOpen(openingHours: string[] | "N/A"): { isOpen: boole
     };
 }
   
-  function parseOpeningHours(timeStr: string): TimeRange | null {
+function parseOpeningHours(timeStr: string): TimeRange | null {
     // If it's "Open 24 hours", return full day range
     if (timeStr === 'Open 24 hours') {
-      return {
+        return {
         start: 0,      // 00:00
         end: 24 * 60   // 24:00
-      };
+        };
     }
-  
+
     const match = timeStr.match(/(\d{1,2}):(\d{2}) ([AP]M) – (\d{1,2}):(\d{2}) ([AP]M)/);
     if (!match) return null;
-  
+
     const [_, startHour, startMin, startMeridiem, endHour, endMin, endMeridiem] = match;
-  
+
     const convertToMinutes = (hour: string, min: string, meridiem: string): number => {
-      let h = parseInt(hour);
-      if (meridiem === 'PM' && h !== 12) h += 12;
-      if (meridiem === 'AM' && h === 12) h = 0;
-      return h * 60 + parseInt(min);
+        let h = parseInt(hour);
+        if (meridiem === 'PM' && h !== 12) h += 12;
+        if (meridiem === 'AM' && h === 12) h = 0;
+        return h * 60 + parseInt(min);
     };
-  
+
     return {
-      start: convertToMinutes(startHour, startMin, startMeridiem),
-      end: convertToMinutes(endHour, endMin, endMeridiem)
+        start: convertToMinutes(startHour, startMin, startMeridiem),
+        end: convertToMinutes(endHour, endMin, endMeridiem)
     };
-  }
+}
