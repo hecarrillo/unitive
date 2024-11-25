@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
+import { Prisma, TouristicLocation } from '@prisma/client';
 import { withDatabase } from '@/middleware/database';
 
 export const dynamic = 'force-dynamic';
@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
   const latitude = parseFloat(searchParams.get('latitude') ?? '');
   const longitude = parseFloat(searchParams.get('longitude') ?? '');
   const distance = parseFloat(searchParams.get('distance') ?? '10'); // km
+  const isOpenNowFilter = searchParams.get('isOpenNow') === 'true';
   
   // Parse arrays from comma-separated strings
   const categoryIds = searchParams.get('categoryIds')?.split(',')
@@ -74,7 +75,6 @@ export async function GET(request: NextRequest) {
       `
     );
 
-    const totalCount = countResult[0].count;
 
     // Main query for locations
     const distanceSelect = !isNaN(latitude) && !isNaN(longitude)
@@ -114,8 +114,53 @@ export async function GET(request: NextRequest) {
       `
     );
 
+    // If isOpenNowFilter is true, filter locations in memory
+    const filteredLocations: TouristicLocation[] = isOpenNowFilter 
+      ? (locations as TouristicLocation[]).filter((location: TouristicLocation) => {
+        if (location.openingHours === 'N/A' || !Array.isArray(location.openingHours)) {
+          return false;
+        }
+
+        const now = new Date();
+        const currentDay = now.toLocaleString('en-US', { weekday: 'long' });
+        
+        // Find today's hours
+        const todayHours = (location.openingHours as string[]).find((hours: string) => 
+          hours.startsWith(currentDay)
+        );
+
+        if (!todayHours) return false;
+        if (todayHours.includes('Closed')) return false;
+        
+        // Check for 24 hours
+        if (todayHours.includes('Open 24 hours')) return true;
+
+        // Regular hours check
+        const timeMatch = todayHours.match(/(\d{1,2}):(\d{2}) ([AP]M) – (\d{1,2}):(\d{2}) ([AP]M)/);
+        if (!timeMatch) return false;
+
+        const [_, startHour, startMin, startMeridiem, endHour, endMin, endMeridiem] = timeMatch;
+
+        // Convert to 24-hour format for comparison
+        const convertTo24Hour = (hour: string, min: string, meridiem: string) => {
+          let h = parseInt(hour);
+          if (meridiem === 'PM' && h !== 12) h += 12;
+          if (meridiem === 'AM' && h === 12) h = 0;
+          return h * 60 + parseInt(min); // Return minutes since midnight
+        };
+
+        const startMinutes = convertTo24Hour(startHour, startMin, startMeridiem);
+        const endMinutes = convertTo24Hour(endHour, endMin, endMeridiem);
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+        return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+      })
+      : locations as TouristicLocation[];
+
+    const totalCount = isOpenNowFilter ? filteredLocations.length : countResult[0].count;
+
     return NextResponse.json({
-      locations,
+      locations: filteredLocations,
       page,
       perPage,
       total: totalCount,
@@ -128,5 +173,6 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-});
+  }
+  );
 }

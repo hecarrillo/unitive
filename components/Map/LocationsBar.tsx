@@ -5,8 +5,9 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Star, Plus, X } from 'lucide-react';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useRoutes } from '@/hooks/useRouteLocations';
-import { useToast } from '@/components/ui/toast';
+import { StatusPill } from '@/components/ui/status-pill';
 import { MarqueeText } from '@/components/ui/marquee-text';
+import { isCurrentlyOpen} from '@/lib/utils/business-hours';
 
 interface Location {
   id: string;
@@ -19,6 +20,7 @@ interface Location {
   rating: number | null;
   distance: number;
   aspectRatings: { [key: string]: number };
+  openingHours: string[] | "N/A";
   type?: string;
 }
 
@@ -104,7 +106,7 @@ const LocationsBar: React.FC<LocationsBarProps> = ({
               <button 
                 onClick={(e) => handleRouteClick(e, location.id)}
                 className={`
-                  absolute top-11 right-2 px-2 py-1 
+                  absolute top-20 right-2 px-2 py-1 
                   rounded-full transition-all z-10 
                   bg-white/80 backdrop-blur-sm
                   flex items-center gap-1
@@ -156,7 +158,10 @@ const LocationsBar: React.FC<LocationsBarProps> = ({
                         isCardHovered={hoveredCardId === location.id}
                       />
                     </div>
-                    <p className="text-sm text-gray-600 mb-1 truncate">{location.type}</p>
+                    <div className="flex items-center gap-2">
+                      <StatusPill status={isCurrentlyOpen(location.openingHours).status} />
+                      <p className="text-sm text-gray-600 truncate">{location.type}</p>
+                    </div>
                   </div>
                 </div>
                 <div className="mt-2">

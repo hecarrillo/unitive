@@ -15,6 +15,8 @@ interface FilterContextType {
   resetFilters: () => void;
   isNameSearch: boolean;
   setIsNameSearch: Dispatch<SetStateAction<boolean>>;
+  isOpenNowFilter: boolean;
+  setIsOpenNowFilter: Dispatch<SetStateAction<boolean>>;
 }
 
 const FilterContext = createContext<FilterContextType | undefined>(undefined);
@@ -25,6 +27,7 @@ export function FilterProvider({ children, initialRadius = 20 }: { children: Rea
   const [selectedAspects, setSelectedAspects] = useState<number[]>([]);
   const [radius, setRadius] = useState<number>(initialRadius);
   const [isNameSearch, setIsNameSearch] = useState<boolean>(false);
+  const [isOpenNowFilter, setIsOpenNowFilter] = useState<boolean>(false);
 
   useEffect(() => {
     const savedFilters = localStorage.getItem('mapFilters');
@@ -34,7 +37,8 @@ export function FilterProvider({ children, initialRadius = 20 }: { children: Rea
         selectedCategories: savedCategories,
         selectedAspects: savedAspects,
         radius: savedRadius,
-        isNameSearch: savedIsNameSearch
+        isNameSearch: savedIsNameSearch,
+        isOpenNowFilter: savedIsOpenNowFilter
       } = JSON.parse(savedFilters);
 
       setSearchTerm(savedSearchTerm);
@@ -42,6 +46,7 @@ export function FilterProvider({ children, initialRadius = 20 }: { children: Rea
       setSelectedAspects(savedAspects);
       setRadius(savedRadius);
       setIsNameSearch(savedIsNameSearch);
+      setIsOpenNowFilter(savedIsOpenNowFilter);
     }
   }, []);
 
@@ -51,9 +56,10 @@ export function FilterProvider({ children, initialRadius = 20 }: { children: Rea
       selectedCategories,
       selectedAspects,
       radius,
-      isNameSearch
+      isNameSearch,
+      isOpenNowFilter
     }));
-  }, [searchTerm, selectedCategories, selectedAspects, radius, isNameSearch]);
+  }, [searchTerm, selectedCategories, selectedAspects, radius, isNameSearch, isOpenNowFilter]);
 
   const resetFilters = () => {
     setSearchTerm('');
@@ -61,6 +67,7 @@ export function FilterProvider({ children, initialRadius = 20 }: { children: Rea
     setSelectedAspects([]);
     setRadius(initialRadius);
     setIsNameSearch(false);
+    setIsOpenNowFilter(false);
     localStorage.removeItem('mapFilters');
   };
   return (
@@ -76,6 +83,8 @@ export function FilterProvider({ children, initialRadius = 20 }: { children: Rea
       resetFilters,
       isNameSearch,
       setIsNameSearch,
+      isOpenNowFilter,
+      setIsOpenNowFilter
     }}>
       {children}
     </FilterContext.Provider>

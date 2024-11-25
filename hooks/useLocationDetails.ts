@@ -16,6 +16,7 @@ export interface LocationData {
     extractedDate: string;
     userId: string | null;
   }[];
+  openingHours: string[] | "N/A";
 }
 
 export function useLocationDetails(locationId: string) {

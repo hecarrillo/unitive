@@ -39,9 +39,11 @@ interface SearchHeaderProps {
     categoryIds: number[];
     aspectIds: number[];
     radius: number | null;
+    isOpenNow: boolean;
   }) => void;
   initialRadius?: number;
 }
+
 
 interface FilterConfirmation {
   isShowing: boolean;
@@ -50,6 +52,7 @@ interface FilterConfirmation {
     aspects: number;
     hasSearchTerm: boolean;
     radius: number;
+    isOpenNow: boolean;
   };
 }
 
@@ -81,7 +84,9 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
     setRadius,
     resetFilters,
     isNameSearch,
-    setIsNameSearch
+    setIsNameSearch,
+    isOpenNowFilter,
+    setIsOpenNowFilter,
   } = useFilters();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -95,7 +100,8 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
       categories: 0,
       aspects: 0,
       hasSearchTerm: false,
-      radius: initialRadius
+      radius: initialRadius,
+      isOpenNow: false
     }
   });
 
@@ -150,7 +156,6 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
 
   const handleSearch = () => {
     if (searchTerm.trim()) {
-      // If there's a name search, clear filters
       setIsNameSearch(true);
       setSelectedCategories([]);
       setSelectedAspects([]);
@@ -158,17 +163,18 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
         searchTerm,
         categoryIds: [],
         aspectIds: [],
-        radius: null
+        radius: null,
+        isOpenNow: isOpenNowFilter
       });
     } else {
-      // If using filters, clear search term
       setIsNameSearch(false);
       setSearchTerm('');
       onFiltersChange({
         searchTerm: '',
         categoryIds: selectedCategories,
         aspectIds: selectedAspects,
-        radius
+        radius,
+        isOpenNow: isOpenNowFilter
       });
     }
 
@@ -178,13 +184,13 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
         categories: isNameSearch ? 0 : selectedCategories.length,
         aspects: isNameSearch ? 0 : selectedAspects.length,
         hasSearchTerm: searchTerm.trim() !== '',
-        radius: isNameSearch ? 0 : radius
+        radius: isNameSearch ? 0 : radius,
+        isOpenNow: isOpenNowFilter
       }
     });
 
     setIsDialogOpen(false);
   };
-
   const handleDismissConfirmation = () => {
     setFilterConfirmation(prev => ({
       ...prev,
@@ -224,7 +230,8 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
         categories: 0,
         aspects: 0,
         hasSearchTerm: false,
-        radius: initialRadius
+        radius: initialRadius,
+        isOpenNow: false
       }
     });
 
@@ -233,7 +240,8 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
       searchTerm: '',
       categoryIds: [],
       aspectIds: [],
-      radius: initialRadius
+      radius: initialRadius,
+      isOpenNow: false
     });
 
     // Close the dialog
@@ -284,7 +292,9 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
                     <span className="h-5 w-5 rounded-full bg-green-600 text-white text-xs flex items-center justify-center">
                       {filterConfirmation.appliedFilters.categories + 
                        filterConfirmation.appliedFilters.aspects + 
-                       (filterConfirmation.appliedFilters.hasSearchTerm ? 1 : 0)}
+                       (filterConfirmation.appliedFilters.hasSearchTerm ? 1 : 0) + 
+                       (filterConfirmation.appliedFilters.radius > 0 ? 1 : 0)
+                       + (filterConfirmation.appliedFilters.isOpenNow ? 1 : 0)}
                     </span>
                   </div>
                 ) : (
@@ -329,6 +339,11 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
                       {filterConfirmation.appliedFilters.aspects > 0 && (
                         <div className="flex items-center justify-between bg-gray-50 p-2 rounded">
                           <span>Aspects: {filterConfirmation.appliedFilters.aspects} selected</span>
+                        </div>
+                      )}
+                      {filterConfirmation.appliedFilters.isOpenNow && (
+                        <div className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                          <span>Open Now: Yes</span>
                         </div>
                       )}
                       <div className="flex items-center justify-between bg-gray-50 p-2 rounded">
@@ -440,6 +455,17 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
                           </div>
                         </div>
                       </TabsContent>
+                      <div className="mt-4 px-4">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox 
+                            id="open-now"
+                            checked={isOpenNowFilter}
+                            onCheckedChange={(checked) => setIsOpenNowFilter(checked as boolean)}
+                            className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                          />
+                          <Label htmlFor="open-now">Open Now</Label>
+                        </div>
+                      </div>
                     </Tabs>
                   )}
   

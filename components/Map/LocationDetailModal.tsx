@@ -6,7 +6,7 @@ import { useFavorites } from '@/hooks/useFavorites';
 import { useRoutes } from '@/hooks/useRouteLocations';
 import ReviewSection from './ReviewSection';
 import { useLocationDetails } from '@/hooks/useLocationDetails';
-
+import { OpeningHours } from '../ui/opening-hours';
 interface LocationDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -136,6 +136,11 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
                   {locationData.summarizedReview || 'No summary available'}
                 </p>
               </div>
+
+              {/* Opening Hours */}
+              <OpeningHours 
+                hours={locationData.openingHours}
+              />
 
               {/* Review Section */}
               <ReviewSection 

@@ -33,6 +33,7 @@ interface Location {
   rating: number | null;
   distance: number;
   aspectRatings: { [key: string]: number };
+  openingHours: string[] | "N/A";
   type?: string;
 }
 
@@ -344,6 +345,7 @@ const MapLayout: FC = () => {
     categoryIds: number[];
     aspectIds: number[];
     radius: number | null;
+    isOpenNow: boolean;
   }) => {
     if (!mapInstance) return;
   
@@ -351,20 +353,12 @@ const MapLayout: FC = () => {
     const center = mapInstance.getCenter();
     if (!center) return;
   
-    // First, zoom out to show all of Mexico City
-    fitMapToMexicoCity(mapInstance);
-
     const searchParams = new URLSearchParams({
       latitude: center.lat().toString(),
       longitude: center.lng().toString(),
       page: '1',
       perPage: '60'
     });
-  
-    // Only add radius if it's provided (not null)
-    if (filters.radius !== null) {
-      searchParams.append('distance', filters.radius.toString());
-    }
   
     // Only add non-empty parameters
     if (filters.searchTerm.trim()) {
@@ -377,6 +371,15 @@ const MapLayout: FC = () => {
   
     if (filters.aspectIds.length > 0) {
       searchParams.append('aspectIds', filters.aspectIds.join(','));
+    }
+  
+    if (filters.radius !== null) {
+      searchParams.append('distance', filters.radius.toString());
+    }
+  
+    // Add isOpenNow parameter
+    if (filters.isOpenNow) {
+      searchParams.append('isOpenNow', 'true');
     }
   
     try {
