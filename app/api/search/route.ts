@@ -5,6 +5,48 @@ import { withDatabase } from '@/middleware/database';
 
 export const dynamic = 'force-dynamic';
 
+function convertTo24Hour(hour: string, min: string, meridiem: string): number {
+  let h = parseInt(hour);
+  if (meridiem === 'PM' && h !== 12) h += 12;
+  if (meridiem === 'AM' && h === 12) h = 0;
+  return h * 60 + parseInt(min);
+}
+
+function parseTimeRange(timeStr: string): { start: number; end: number } | null {
+  // Try the standard format first (12:00 AM - 6:00 PM)
+  let match = timeStr.match(/(\d{1,2}):(\d{2})\s*([AP]M)\s*[–-]\s*(\d{1,2}):(\d{2})\s*([AP]M)/);
+  
+  if (match) {
+    const [_, startHour, startMin, startMeridiem, endHour, endMin, endMeridiem] = match;
+    return {
+      start: convertTo24Hour(startHour, startMin, startMeridiem),
+      end: convertTo24Hour(endHour, endMin, endMeridiem)
+    };
+  }
+
+  // Try the shortened format (12:00 - 8:00 PM)
+  match = timeStr.match(/(\d{1,2}):(\d{2})\s*[–-]\s*(\d{1,2}):(\d{2})\s*([AP]M)/);
+  if (match) {
+    const [_, startHour, startMin, endHour, endMin, meridiem] = match;
+    return {
+      start: convertTo24Hour(startHour, startMin, meridiem),
+      end: convertTo24Hour(endHour, endMin, meridiem)
+    };
+  }
+
+  // Try even shorter format (12:00 - 8:00)
+  match = timeStr.match(/(\d{1,2}):(\d{2})\s*[–-]\s*(\d{1,2}):(\d{2})/);
+  if (match) {
+    const [_, startHour, startMin, endHour, endMin] = match;
+    return {
+      start: convertTo24Hour(startHour, startMin, 'PM'),
+      end: convertTo24Hour(endHour, endMin, 'PM')
+    };
+  }
+
+  return null;
+}
+
 export async function GET(request: NextRequest) {
   return withDatabase( async () => {
   const searchParams = request.nextUrl.searchParams;
@@ -114,48 +156,36 @@ export async function GET(request: NextRequest) {
       `
     );
 
-    // If isOpenNowFilter is true, filter locations in memory
-    const filteredLocations: TouristicLocation[] = isOpenNowFilter 
-      ? (locations as TouristicLocation[]).filter((location: TouristicLocation) => {
-        if (location.openingHours === 'N/A' || !Array.isArray(location.openingHours)) {
-          return false;
-        }
+// In the filter function
+const filteredLocations = isOpenNowFilter 
+  ? (locations as any[]).filter(location => {
+      if (location.openingHours === 'N/A' || !Array.isArray(location.openingHours)) {
+        return false;
+      }
 
-        const now = new Date();
-        const currentDay = now.toLocaleString('en-US', { weekday: 'long' });
-        
-        // Find today's hours
-        const todayHours = (location.openingHours as string[]).find((hours: string) => 
-          hours.startsWith(currentDay)
-        );
+      const now = new Date();
+      const centralTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Chicago" }));
+      const currentDay = centralTime.toLocaleString('en-US', { weekday: 'long' });
+      
+      const todayHours = location.openingHours.find((hours: string) => 
+        hours.startsWith(currentDay)
+      );
 
-        if (!todayHours) return false;
-        if (todayHours.includes('Closed')) return false;
-        
-        // Check for 24 hours
-        if (todayHours.includes('Open 24 hours')) return true;
+      if (!todayHours) return false;
 
-        // Regular hours check
-        const timeMatch = todayHours.match(/(\d{1,2}):(\d{2}) ([AP]M) – (\d{1,2}):(\d{2}) ([AP]M)/);
-        if (!timeMatch) return false;
+      const timePart = todayHours.split(': ')[1]?.trim();
+      if (!timePart) return false;
 
-        const [_, startHour, startMin, startMeridiem, endHour, endMin, endMeridiem] = timeMatch;
+      if (timePart === 'Closed') return false;
+      if (timePart === 'Open 24 hours') return true;
 
-        // Convert to 24-hour format for comparison
-        const convertTo24Hour = (hour: string, min: string, meridiem: string) => {
-          let h = parseInt(hour);
-          if (meridiem === 'PM' && h !== 12) h += 12;
-          if (meridiem === 'AM' && h === 12) h = 0;
-          return h * 60 + parseInt(min); // Return minutes since midnight
-        };
+      const timeRange = parseTimeRange(timePart);
+      if (!timeRange) return false;
 
-        const startMinutes = convertTo24Hour(startHour, startMin, startMeridiem);
-        const endMinutes = convertTo24Hour(endHour, endMin, endMeridiem);
-        const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-        return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
-      })
-      : locations as TouristicLocation[];
+      const currentMinutes = centralTime.getHours() * 60 + centralTime.getMinutes();
+      return currentMinutes >= timeRange.start && currentMinutes <= timeRange.end;
+  })
+  : locations as TouristicLocation[];
 
     const totalCount = isOpenNowFilter ? filteredLocations.length : countResult[0].count;
 
