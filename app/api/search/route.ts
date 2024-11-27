@@ -157,8 +157,8 @@ export async function GET(request: NextRequest) {
     );
 
 // In the filter function
-const filteredLocations = isOpenNowFilter 
-  ? (locations as any[]).filter(location => {
+const filteredLocations: TouristicLocation[] = isOpenNowFilter 
+  ? (locations as TouristicLocation[]).filter(location => {
       if (location.openingHours === 'N/A' || !Array.isArray(location.openingHours)) {
         return false;
       }
@@ -167,7 +167,7 @@ const filteredLocations = isOpenNowFilter
       const centralTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Chicago" }));
       const currentDay = centralTime.toLocaleString('en-US', { weekday: 'long' });
       
-      const todayHours = location.openingHours.find((hours: string) => 
+      const todayHours = (location.openingHours as string[]).find((hours: string) => 
         hours.startsWith(currentDay)
       );
 
