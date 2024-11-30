@@ -656,7 +656,10 @@ const MapLayout: FC = () => {
       lat: place.latitude,
       lng: place.longitude,
     });
-    setZoom(16); // Zoom in closer to the selected location
+    setZoom(16);
+    
+    // Push a new history entry when opening the modal
+    window.history.pushState({ modal: true }, '');
   };
 
   const handleLoadCurrentArea = useCallback(async () => {
@@ -693,8 +696,8 @@ const MapLayout: FC = () => {
   );
 }, [mapInstance, activeFilters, fetchLocationsInArea]);
 
+  // Also update the handleLocationSelect function since it also opens the modal:
   const handleLocationSelect = (location: Location) => {
-    // Store current map state before changing it
     if (mapInstance) {
       setPreviousZoom(mapInstance.getZoom() || 12);
       setPreviousCenter({
@@ -702,16 +705,20 @@ const MapLayout: FC = () => {
         lng: mapInstance.getCenter()?.lng() || defaultCenter.lng
       });
     }
-  
+
     setSelectedPlace(location);
     setIsModalOpen(true);
     setCenter({
       lat: location.latitude,
       lng: location.longitude,
     });
-    setZoom(16); // Zoom in closer to the selected location
+    setZoom(16);
+    
+    // Push a new history entry when opening the modal
+    window.history.pushState({ modal: true }, '');
   };
 
+  // Update the handleModalClose function:
   const handleModalClose = () => {
     setIsModalOpen(false);
     setSelectedPlace(null);
@@ -727,6 +734,20 @@ const MapLayout: FC = () => {
       google.maps.event.trigger(mapInstance, 'resize');
     }
   };
+
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (isModalOpen) {
+        handleModalClose();
+      }
+    };
+  
+    window.addEventListener('popstate', handlePopState);
+  
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [isModalOpen]);
 
   if (loadError) return <div>Error loading maps</div>;
   if (!isLoaded) return <Loading />;
