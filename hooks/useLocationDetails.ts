@@ -8,6 +8,7 @@ export interface LocationData {
   image: string | null;
   thumbnailImage: string | null;
   summarizedReview: string | null;
+  summarizedReviewEs: string | null;
   aspectRatings: { aspect: { name: string }; rating: number }[];
   siteReviews: { 
     id: string;

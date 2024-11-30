@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 // scripts/generate-thumbnails.js
 const { createClient } = require('@supabase/supabase-js');
 const path = require('path');
