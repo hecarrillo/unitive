@@ -68,9 +68,38 @@ export const useRoutes = () => {
     },
   });
 
+  const { mutate: clearRoutes } = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/routes/clear', {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to clear routes');
+      }
+    },
+    // Optimistic update
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['routes'] });
+      const previousRoutes = queryClient.getQueryData(['routes']);
+      
+      // Clear all routes
+      queryClient.setQueryData(['routes'], new Set());
+      
+      return { previousRoutes };
+    },
+    onError: (err, variables, context) => {
+      queryClient.setQueryData(['routes'], context?.previousRoutes);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['routes'] });
+    },
+  });
+
   return {
     routeLocations,
     toggleRoutes,
+    clearRoutes,
     isLoading,
   };
 };

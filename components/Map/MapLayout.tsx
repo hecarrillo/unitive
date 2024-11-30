@@ -12,10 +12,7 @@ import Loading from '../utils/Loading';
 import LocationsBar from './LocationsBar';
 import SearchHeader from './SearchHeader';
 import { PersonStanding } from 'lucide-react';
-import { MessageSquarePlus } from 'lucide-react';
 import { fitMapToMexicoCity, shouldZoomToCity } from '@/lib/map-utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { set } from 'zod';
 
 interface LatLng {
   lat: number;
@@ -102,7 +99,7 @@ const MapLayout: FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [previousZoom, setPreviousZoom] = useState<number>(12);
   const { favoriteLocations, toggleFavorite, isLoading: favoritesLoading } = useFavorites();
-  const { routeLocations, toggleRoutes, isLoading: routesLoading } = useRoutes();
+  const { routeLocations, toggleRoutes, isLoading: routesLoading, clearRoutes } = useRoutes();
   const [previousCenter, setPreviousCenter] = useState<LatLng>(defaultCenter);
   const [userLocation, setUserLocation] = useState<LatLng | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
@@ -739,7 +736,7 @@ const MapLayout: FC = () => {
   return (
     <div className="relative w-full h-screen overflow-hidden">
       {
-        !isModalOpen &&
+        !isModalOpen && currentMode === 'normal' &&
           <SearchHeader 
             onFiltersChange={handleFiltersChange}
             initialRadius={currentSearchArea?.distance ?? 5}
@@ -854,6 +851,19 @@ const MapLayout: FC = () => {
               Return to Normal Mode
             </Button>
           )}
+          {/* Button to clear all route locations */}
+          {currentMode === 'route' && (
+            <Button
+              className="bg-white text-black hover:text-black shadow-lg hover:shadow-xl border flex items-center gap-2"
+              onClick={async () => {
+                await clearRoutes();
+                returnToNormalMode();
+              }}
+            >
+              <RefreshCw className="w-4 h-4" />
+              Clear Route
+            </Button>
+          )}
 
           {/* Show 'Load places in this area' only in normal mode */}
           {currentMode === 'normal' && hasMovedMap && (
@@ -894,25 +904,6 @@ const MapLayout: FC = () => {
           </Button>
         </div>
       )}
-
-      <div className="fixed bottom-48 left-4 z-[70]"> {/* z-[70] to stay above other elements */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                className="bg-white/80 hover:bg-white text-black border shadow-lg rounded-full w-10 h-10 p-0 flex items-center justify-center backdrop-blur-sm transition-all duration-200"
-                onClick={() => window.open('https://forms.gle/QKjKGcc1q9bGNWiw7', '_blank', 'noopener,noreferrer')}
-                aria-label="Provide feedback"
-              >
-                <MessageSquarePlus className="w-5 h-5 text-green-600" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Share your feedback</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      </div>
   
       {/* Bottom Locations Bar - Adjusts width based on modal state and screen size */}
       {initialDataLoaded && locations.length > 0 && !isModalOpen && (
