@@ -22,6 +22,7 @@ model TouristicLocation {
   image              String?
   thumbnailImage     String?
   summarizedReview   String?
+  summarizedReviewEs String?
   rating             Float?
   tripAdvisorPlaceId String?                @unique
   category           LocationCategory       @relation(fields: [categoryId], references: [id])
