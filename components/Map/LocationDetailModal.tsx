@@ -10,6 +10,7 @@ import { useLocationDetails } from '@/hooks/useLocationDetails';
 import { OpeningHours } from '../ui/opening-hours';
 import { AIBadge } from '@/components/ui/ai-badge';
 import { LanguageSelector } from '@/components/ui/language-selector';
+import { useToast } from '@/components/ui/toast';
 
 interface LocationDetailModalProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
   const { locationData, isLoading, error, invalidateLocationData } = useLocationDetails(locationId);
   const { favoriteLocations, toggleFavorite } = useFavorites();
   const { routeLocations, toggleRoutes } = useRoutes();
+  const { toast } = useToast();
 
   const getSummary = () => {
     if (!locationData) {
@@ -53,12 +55,28 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
 
   const handleFavoriteClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    const isFavorite = favoriteLocations.has(locationId);
     await toggleFavorite(locationId);
+    
+    // Show toast notification
+    toast({
+      title: isFavorite ? "Removed from Favorites" : "Added to Favorites",
+      description: `${locationData?.name || 'Location'} ${isFavorite ? 'has been removed from' : 'is now in'} your favorites.`,
+      variant: isFavorite ? "destructive" : "default"
+    });
   };
 
   const handleRouteClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    const isInRoute = routeLocations.has(locationId);
     await toggleRoutes(locationId);
+    
+    // Show toast notification
+    toast({
+      title: isInRoute ? "Removed from Route" : "Added to Route",
+      description: `${locationData?.name || 'Location'} ${isInRoute ? 'has been removed from' : 'is now in'} your touristic route.`,
+      variant: isInRoute ? "destructive" : "default"
+    });
   };
 
   const handleReviewSubmitted = () => {

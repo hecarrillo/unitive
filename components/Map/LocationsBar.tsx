@@ -8,6 +8,7 @@ import { useRoutes } from '@/hooks/useRouteLocations';
 import { StatusPill } from '@/components/ui/status-pill';
 import { MarqueeText } from '@/components/ui/marquee-text';
 import { isCurrentlyOpen} from '@/lib/utils/business-hours';
+import { useToast } from '@/components/ui/toast';
 
 interface Location {
   id: string;
@@ -56,15 +57,32 @@ const LocationsBar: React.FC<LocationsBarProps> = ({
   const { favoriteLocations, toggleFavorite, isLoading: favoritesLoading } = useFavorites();
   const { routeLocations, toggleRoutes, isLoading: routesLoading } = useRoutes();
   const [hoveredCardId, setHoveredCardId] = React.useState<string | null>(null);
+  const { toast } = useToast();
 
-  const handleFavoriteClick = async (e: React.MouseEvent, locationId: string) => {
+  const handleFavoriteClick = async (e: React.MouseEvent, location: Location) => {
     e.stopPropagation();
-    await toggleFavorite(locationId);
+    const isFavorite = favoriteLocations.has(location.id);
+    await toggleFavorite(location.id);
+    
+    // Show toast notification
+    toast({
+      title: isFavorite ? "Removed from Favorites" : "Added to Favorites",
+      description: `${location.name} ${isFavorite ? 'has been removed from' : 'is now in'} your favorites.`,
+      variant: isFavorite ? "destructive" : "default"
+    });
   };
 
-  const handleRouteClick = async (e: React.MouseEvent, locationId: string) => {
+  const handleRouteClick = async (e: React.MouseEvent, location: Location) => {
     e.stopPropagation();
-    await toggleRoutes(locationId);
+    const isInRoute = routeLocations.has(location.id);
+    await toggleRoutes(location.id);
+    
+    // Show toast notification
+    toast({
+      title: isInRoute ? "Removed from Route" : "Added to Route",
+      description: `${location.name} ${isInRoute ? 'has been removed from' : 'is now in'} your touristic route.`,
+      variant: isInRoute ? "destructive" : "default"
+    });
   };
 
   const handleCardHover = (locationId: string | null) => {
@@ -92,7 +110,7 @@ const LocationsBar: React.FC<LocationsBarProps> = ({
               onClick={() => onLocationSelect(location)}
             >
               <button 
-                onClick={(e) => handleFavoriteClick(e, location.id)}
+                onClick={(e) => handleFavoriteClick(e, location)}
                 className="absolute top-2 right-2 p-1 hover:bg-gray-100 rounded-full transition-colors z-10 bg-white/80 backdrop-blur-sm"
               >
                 <Star 
@@ -104,7 +122,7 @@ const LocationsBar: React.FC<LocationsBarProps> = ({
                 />
               </button>
               <button 
-                onClick={(e) => handleRouteClick(e, location.id)}
+                onClick={(e) => handleRouteClick(e, location)}
                 className={`
                   absolute top-20 right-2 px-2 py-1 
                   rounded-full transition-all z-10 
