@@ -42,6 +42,7 @@ interface SearchHeaderProps {
     isOpenNow: boolean;
   }) => void;
   initialRadius?: number;
+  onNoResults?: () => void;
 }
 
 
@@ -94,6 +95,7 @@ export default function SearchHeader({ onFiltersChange, initialRadius = 20 }: Se
   const [aspects, setAspects] = useState<Aspect[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showNoResultsToast, setShowNoResultsToast] = useState(false);
   const [filterConfirmation, setFilterConfirmation] = useState<FilterConfirmation>({
     isShowing: false,
     appliedFilters: {

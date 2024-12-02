@@ -13,6 +13,7 @@ import LocationsBar from './LocationsBar';
 import SearchHeader from './SearchHeader';
 import { PersonStanding } from 'lucide-react';
 import { fitMapToMexicoCity, shouldZoomToCity } from '@/lib/map-utils';
+import { NoResultsToast } from './NoResultsToast';
 
 interface LatLng {
   lat: number;
@@ -115,6 +116,18 @@ const MapLayout: FC = () => {
     aspectIds: number[];
     radius: number | null;
   } | null>(null);
+  const [noResultsFound, setNoResultsFound] = useState<{
+    show: boolean;
+    searchTerm?: string;
+    filters?: {
+      categories?: number[];
+      aspects?: number[];
+      radius?: number;
+      isOpenNow?: boolean;
+    };
+  }>({
+    show: false
+  });
 
   const loadFavoriteLocations = useCallback(async () => {
     try {
@@ -236,9 +249,9 @@ const MapLayout: FC = () => {
         throw new Error('Failed to fetch locations');
       }
       
-      const locationData = await locResponse.json();
+      const locationData: Location[] = await locResponse.json();
   
-      const processedLocations: Location [] = locationData;
+      const processedLocations: Location[] = locationData;
   
       setLocations(processedLocations);
   
@@ -248,21 +261,27 @@ const MapLayout: FC = () => {
         
         try {
           // If only one location, no need for route calculation
-          if (processedLocations.length === 1) {
+          if (processedLocations.length === 1 && !userLocation) {
             setDirectionsResult(null);
           } else {
-            // Use first location as start point
-            const startLocation = processedLocations[0];
-            const startPoint = new google.maps.LatLng(
-              startLocation.latitude,
-              startLocation.longitude
-            );
+            // Determine the start point - use user location if available
+            const startPoint = userLocation 
+              ? new google.maps.LatLng(userLocation.lat, userLocation.lng)
+              : new google.maps.LatLng(
+                  processedLocations[0].latitude,
+                  processedLocations[0].longitude
+                );
             
-            // Use locations in between as waypoints
-            const waypoints = processedLocations.slice(1, -1).map(location => ({
-              location: new google.maps.LatLng(location.latitude, location.longitude),
-              stopover: true
-            }));
+            // Adjust waypoints and destination based on start point
+            const waypoints = userLocation 
+              ? processedLocations.map(location => ({
+                  location: new google.maps.LatLng(location.latitude, location.longitude),
+                  stopover: true
+                }))
+              : processedLocations.slice(1, -1).map(location => ({
+                  location: new google.maps.LatLng(location.latitude, location.longitude),
+                  stopover: true
+                }));
   
             // Last location is the destination
             const lastLocation = processedLocations[processedLocations.length - 1];
@@ -270,7 +289,9 @@ const MapLayout: FC = () => {
               lastLocation.latitude,
               lastLocation.longitude
             );
-  
+            console.log(startPoint);
+            console.log(userLocation);
+            
             const routeOptions = {
               origin: startPoint,
               destination: destination,
@@ -286,14 +307,21 @@ const MapLayout: FC = () => {
           // Fit bounds to show all locations
           if (mapInstance) {
             const bounds = new google.maps.LatLngBounds();
+            
+            // Add user location to bounds if available
+            if (userLocation) {
+              bounds.extend(new google.maps.LatLng(userLocation.lat, userLocation.lng));
+            }
+            
             processedLocations.forEach((location) => {
               bounds.extend({ 
                 lat: location.latitude, 
                 lng: location.longitude 
               });
             });
+            
             mapInstance.fitBounds(bounds);
-            if (processedLocations.length === 1) {
+            if (processedLocations.length === 1 && !userLocation) {
               mapInstance.setZoom(14);
             }
           }
@@ -317,18 +345,18 @@ const MapLayout: FC = () => {
       setIsLoadingNewArea(false);
       setIsCalculatingRoute(false);
     }
-  }
-    , [
-      routeLocations, 
-      mapInstance, 
-      setLocations, 
-      setHasMore, 
-      setLoading, 
-      setActiveFilters, 
-      setCurrentSearchArea, 
-      setHasMovedMap, 
-      setError
-    ]);
+  }, [
+    routeLocations, 
+    mapInstance, 
+    userLocation,
+    setLocations, 
+    setHasMore, 
+    setLoading, 
+    setActiveFilters, 
+    setCurrentSearchArea, 
+    setHasMovedMap, 
+    setError
+  ]);
   
   const handleReturnToMyLocation = useCallback(() => {
     if (!mapInstance || !userLocation) return;
@@ -385,6 +413,23 @@ const MapLayout: FC = () => {
       
       const data: ApiResponse = await response.json();
       const processedLocations = data.locations;
+  
+      // Reset no results state before checking
+      setNoResultsFound({ show: false });
+  
+      // If no locations found, set no results state
+      if (processedLocations.length === 0) {
+        setNoResultsFound({
+          show: true,
+          searchTerm: filters.searchTerm,
+          filters: {
+            categories: filters.categoryIds,
+            aspects: filters.aspectIds,
+            radius: filters.radius || undefined,
+            isOpenNow: filters.isOpenNow
+          }
+        });
+      }
   
       setLocations(processedLocations);
       setHasMore(data.page * data.perPage < data.total);
@@ -763,7 +808,16 @@ const MapLayout: FC = () => {
             initialRadius={currentSearchArea?.distance ?? 5}
           />
       }
-      
+      <NoResultsToast
+          show={noResultsFound.show}
+          searchTerm={noResultsFound.searchTerm}
+          filters={{
+            categories: noResultsFound.filters?.categories,
+            aspects: noResultsFound.filters?.aspects,
+            radius: noResultsFound.filters?.radius,
+            isOpenNow: noResultsFound.filters?.isOpenNow
+          }}
+        />
       {/* Map Container - Adjust top padding to account for SearchHeader */}
       <div 
         className={`
@@ -825,6 +879,12 @@ const MapLayout: FC = () => {
                 strokeWeight: 2,
                 strokeColor: '#2563eb',
               }}
+              label={currentMode === 'route' ? {
+                text: 'S',
+                color: 'white',
+                fontWeight: 'bold',
+                fontSize: '14px'
+              } : undefined}
             />
           )}
 
@@ -834,8 +894,8 @@ const MapLayout: FC = () => {
             const isSelected = selectedPlace?.id === place.id;
             let markerOrder: string | undefined;
             
-            if (currentMode === 'route' && locations.length > 1) {
-              if (index === 0) {
+            if (currentMode === 'route' && (locations.length > 1 || userLocation)) {
+              if (index === 0 && !userLocation) {
                 markerOrder = 'S';
               } else if (index === locations.length - 1) {
                 markerOrder = 'D';
@@ -859,7 +919,7 @@ const MapLayout: FC = () => {
             );
           })}
         </GoogleMap>
-  
+
         {/* Map Controls Overlay */}
         <div className="absolute top-32 left-4 flex flex-col gap-8 z-[60]"> 
           {/* Show 'Return to Normal Mode' when in route or favorites mode */}
