@@ -47,7 +47,23 @@ const defaultCenter: LatLng = {
   lng: -99.1332,
 };
 
-const getMarkerIcon = (isHovered: boolean, isSelected: boolean, order?: string) => {
+const getMarkerIcon = (
+  isHovered: boolean, 
+  isSelected: boolean, 
+  order?: string, 
+  rating?: number | null  // Explicitly allow null
+) => {
+  let baseColor = '#00a600'; // default green
+  if (rating !== null && rating !== undefined) {
+    if (rating < 2.5) {
+      baseColor = '#ef4444'; // red for low ratings
+    } else if (rating >= 2.5 && rating <= 4) {
+      baseColor = '#eab308'; // yellow for medium ratings
+    } else {
+      baseColor = '#22c55e'; // green for high ratings
+    }
+  }
+
   if (order !== undefined) {
     return {
       path: google.maps.SymbolPath.CIRCLE,
@@ -62,7 +78,7 @@ const getMarkerIcon = (isHovered: boolean, isSelected: boolean, order?: string) 
   
   return {
     path: "M 12,2 C 8.1340068,2 5,5.1340068 5,9 c 0,5.25 7,13 7,13 0,0 7,-7.75 7,-13 0,-3.8659932 -3.134007,-7 -7,-7 z",
-    fillColor: isHovered ? '#ef4444' : '#00a600',
+    fillColor: isHovered ? '#ef4444' : baseColor,
     fillOpacity: 1,
     strokeWeight: 2,
     strokeColor: isHovered ? '#dc2626' : '#274E13',
@@ -908,7 +924,7 @@ const MapLayout: FC = () => {
                 position={{lat: place.latitude, lng: place.longitude}}
                 onClick={() => handleMarkerClick(place)}
                 animation={isSelected ? google.maps.Animation.BOUNCE : undefined}
-                icon={getMarkerIcon(isHovered, isSelected, markerOrder)}
+                icon={getMarkerIcon(isHovered, isSelected, markerOrder, place.rating)}
                 label={markerOrder !== undefined ? {
                   text: markerOrder.toString(),
                   color: 'white',
