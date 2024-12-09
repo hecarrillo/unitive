@@ -30,11 +30,26 @@ model TouristicLocation {
   aspectRatings      LocationAspectRating[]
   favoriteUsers      FavoriteUserLocation[]
   userRoutes         UserRouteLocation[]
+  locationReports    LocationUserReport[]
 
   @@index([categoryId])
   @@index([name])
   @@index([rating])
   @@index([latitude, longitude])
+}
+
+model LocationUserReport {
+  id         Int               @id @default(autoincrement())
+  locationId String
+  userId     String
+  body       String
+  created    DateTime
+  location   TouristicLocation @relation(fields: [locationId], references: [id])
+  user       User              @relation(fields: [userId], references: [id])
+
+  @@index([locationId])
+  @@index([userId])
+  @@index([created])
 }
 
 model SiteReview {
@@ -85,6 +100,7 @@ model User {
   id                String                 @id @default(cuid())
   email             String                 @unique
   avatarUrl         String?
+  locationReports   LocationUserReport[]
   favoriteLocations FavoriteUserLocation[]
   routeLocations    UserRouteLocation[]
   reviews           SiteReview[]
