@@ -14,6 +14,7 @@ import SearchHeader from './SearchHeader';
 import { PersonStanding } from 'lucide-react';
 import { fitMapToMexicoCity, shouldZoomToCity } from '@/lib/map-utils';
 import { NoResultsToast } from './NoResultsToast';
+import { useToast } from '@/components/ui/toast';
 
 interface LatLng {
   lat: number;
@@ -122,6 +123,7 @@ const MapLayout: FC = () => {
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [hasMovedMap, setHasMovedMap] = useState(false);
   const [isLoadingNewArea, setIsLoadingNewArea] = useState(false);
+  const { toast } = useToast();
   const [currentSearchArea, setCurrentSearchArea] = useState<{
     center: LatLng;
     distance: number;
@@ -250,6 +252,11 @@ const MapLayout: FC = () => {
       if (routeIds.length === 0) {
         setLocations([]);
         setHasMore(false);
+        toast({
+          title: "No locations in the route",
+          description: "Please add any location to your touristic route to start creating one.",
+          variant: "destructive"
+        });
         return;
       }
   
@@ -272,7 +279,7 @@ const MapLayout: FC = () => {
       setLocations(processedLocations);
   
       // Calculate route
-      if (processedLocations.length > 0) {
+      if (processedLocations.length > 1) {
         const directionsService = new google.maps.DirectionsService();
         
         try {

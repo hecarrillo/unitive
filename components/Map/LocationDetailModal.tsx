@@ -1,16 +1,17 @@
-import React from 'react';
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { X, Star, Route } from 'lucide-react';
+import { X, Star, Route, Flag } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useRoutes } from '@/hooks/useRouteLocations';
 import ReviewSection from './ReviewSection';
+import ReportSection from './ReportSection';
 import { useLocationDetails } from '@/hooks/useLocationDetails';
 import { OpeningHours } from '../ui/opening-hours';
 import { AIBadge } from '@/components/ui/ai-badge';
 import { LanguageSelector } from '@/components/ui/language-selector';
 import { useToast } from '@/components/ui/toast';
+import { useSupabase } from '@/app/supabase-provider';
 
 interface LocationDetailModalProps {
   isOpen: boolean;
@@ -36,10 +37,57 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
   locationId,
 }) => {
   const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'es'>('en');
+  const [isReporting, setIsReporting] = useState(false);
+  const [hasReported, setHasReported] = useState(false);
   const { locationData, isLoading, error, invalidateLocationData } = useLocationDetails(locationId);
   const { favoriteLocations, toggleFavorite } = useFavorites();
   const { routeLocations, toggleRoutes } = useRoutes();
   const { toast } = useToast();
+  const { supabase } = useSupabase();
+
+  const [userReport, setUserReport] = useState<{id: string, body: string} | null>(null);
+  
+  const handleReportClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsReporting(true);
+  };
+
+  const handleReportClose = () => {
+    setIsReporting(false);
+  };
+
+  const handleReportSubmitted = () => {
+    invalidateLocationData();
+    setIsReporting(false);
+  };
+
+  // Fetch existing report when modal opens
+  useEffect(() => {
+    const fetchUserReport = async () => {
+      if (!isOpen) return;
+
+      try {
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) return;
+
+        const response = await fetch(`/api/reports?userId=${user.id}`);
+        const reports = await response.json();
+        
+        // Assuming the first report is the user's report
+        if (reports.length > 0) {
+          setUserReport({
+            id: reports[0].id,
+            body: reports[0].body
+          });
+          setHasReported(true)
+        }
+      } catch (error) {
+        console.error('Error fetching user report:', error);
+      }
+    };
+
+    fetchUserReport();
+  }, [isOpen, locationId]);
 
   const getSummary = () => {
     if (!locationData) {
@@ -166,7 +214,42 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
             <div className="py-6 space-y-6">
               {/* Location name and summary */}
               <div>
-                <h2 className="text-2xl font-bold mb-2">{locationData.name}</h2>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-2">
+                  <h2 className="text-2xl font-bold">{locationData.name}</h2>
+                  <button 
+                    onClick={handleReportClick}
+                    disabled={hasReported}
+                    className={`
+                      p-1 rounded-full 
+                      ${hasReported 
+                        ? 'text-gray-300 cursor-not-allowed' 
+                        : 'text-red-500 hover:bg-red-50 hover:text-red-600'}
+                    `}
+                    title={hasReported ? 'Already reported' : 'Report location'}
+                  >
+                    <Flag className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+                {/* Add ReportSection */}
+                {isReporting && (
+                  <div 
+                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+                    onClick={handleReportClose}
+                  >
+                    <div 
+                      className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ReportSection 
+                        locationId={locationId}
+                        onReportSubmitted={handleReportSubmitted}
+                        onClose={handleReportClose}
+                      />
+                    </div>
+                  </div>
+                )}
                 <div className="relative p-4 mb-2">
                   {/* Rainbow gradient border */}
                   <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-pink-500 via-yellow-500 to-cyan-500 p-[1px]">
@@ -187,8 +270,8 @@ const LocationDetailModal: React.FC<LocationDetailModalProps> = ({
                     </p>
                     <p className="text-xs text-gray-400 mt-2 italic">
                       {selectedLanguage === 'es' 
-                        ? 'Este resumen fue generado por IA basado en las reseñas de los visitantes'
-                        : 'This summary was generated by AI based on visitor reviews'
+                        ? 'Este resumen fue generado por IA basado en las reseñas de Google Maps y TripAdvisor'
+                        : 'This summary was generated by AI based on reviews from Google Maps and TripAdvisor'
                       }
                     </p>
                   </div>
