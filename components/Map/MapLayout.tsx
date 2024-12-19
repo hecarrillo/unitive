@@ -859,7 +859,7 @@ const MapLayout: FC = () => {
             height: '100%'
           }}
           options={{
-            zoomControl: true,
+            zoomControl: false,
             streetViewControl: false,
             mapTypeControl: false,
             fullscreenControl: false,
